@@ -120,18 +120,18 @@ export function createWorld(scene) {
     lines.frustumCulled = false;
     scene.add(lines);
 
-    return { pts, ptsGeo, ptsMat, lineGeo, lineMat, lineCol, base, phase, fade, drift, count, col, streakMul };
+    return { pts, ptsGeo, ptsMat, lineGeo, lineMat, lineCol, base, phase, fade, drift, count, col, streakMul, opacity };
   }
 
   const layers = [
     // 远程尘埃：细密暗蓝，漂移最慢，冲刺时光条最短
-    makeLayer(400, 0.16, 0.5,
-      () => [0.42, 0.55, 1.0].map((v) => v * (0.7 + Math.random() * 0.5)), 0.38, 0.35),
+    makeLayer(400, 0.16, 0.7,
+      () => [0.5, 0.65, 1.0].map((v) => v * (0.95 + Math.random() * 0.35)), 0.38, 0.35),
     // 中层火花：白/青/紫，光条中等
-    makeLayer(260, 0.34, 0.9,
+    makeLayer(260, 0.34, 1.0,
       () => [[1, 1, 1], [0.5, 0.95, 1], [0.72, 0.62, 1]][(Math.random() * 3) | 0], 0.55, 0.6),
     // 近层微光：柔和大点，光条最长最亮
-    makeLayer(110, 0.8, 0.5,
+    makeLayer(110, 0.8, 0.8,
       () => [[0.9, 0.98, 1], [0.55, 0.9, 1], [1, 0.9, 0.68]][(Math.random() * 3) | 0], 0.45, 0.85),
   ];
 
@@ -162,13 +162,13 @@ export function createWorld(scene) {
       L.lineGeo.attributes.position.needsUpdate = true;
 
       // 呼吸 + 光条随冲刺淡入淡出
-      L.ptsMat.opacity = (li === 1 ? 0.9 : 0.5) * (0.85 + 0.15 * Math.sin(t * 0.4 + li * 1.8));
+      L.ptsMat.opacity = L.opacity * (0.9 + 0.1 * Math.sin(t * 0.4 + li * 1.8));
       L.lineMat.opacity = boostLvl * (li === 1 ? 0.85 : 0.6);
 
       // 逐颗闪烁（点与光条共用亮色）
       const c = L.col;
       for (let i = 0; i < L.count; i++) {
-        const tw = 0.55 + 0.45 * Math.sin(t * L.fade[i] + L.phase[i]);
+        const tw = 0.75 + 0.25 * Math.sin(t * L.fade[i] + L.phase[i]);
         const r = L.base[i * 3] * tw, g = L.base[i * 3 + 1] * tw, b = L.base[i * 3 + 2] * tw;
         c[i * 3] = r; c[i * 3 + 1] = g; c[i * 3 + 2] = b;
         L.lineCol[i * 6] = r; L.lineCol[i * 6 + 1] = g; L.lineCol[i * 6 + 2] = b;
