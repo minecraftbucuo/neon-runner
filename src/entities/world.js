@@ -2,8 +2,7 @@
 import * as THREE from 'three';
 import { LANE_W } from '../config.js';
 
-const CROSS_STEP = 4;      // 横向刻度线间距（滚动按此取模循环）
-const STAR_COUNT = 350;    // 滚动星尘粒子
+const CROSS_STEP = 4; // 横向刻度线间距（滚动按此取模循环）
 
 export function createWorld(scene) {
   // 地面底板：宽度收到最外侧红护栏(±8.3)附近，轨道之外即为星空虚空，
@@ -57,27 +56,73 @@ export function createWorld(scene) {
   rail(-6.1, 0x29ffe3); rail(6.1, 0x29ffe3);
   rail(-8.3, 0x7e1c46); rail(8.3, 0x7e1c46);
 
-  // 滚动星尘粒子（随车速漂移，营造速度感）
-  const starPos = new Float32Array(STAR_COUNT * 3);
-  for (let i = 0; i < STAR_COUNT; i++) {
-    starPos[i * 3]     = (Math.random() - 0.5) * 90;
-    starPos[i * 3 + 1] = Math.random() * 30 + 0.5;
-    starPos[i * 3 + 2] = Math.random() * 148 - 130;
-  }
-  const starGeo = new THREE.BufferGeometry();
-  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
-    color: 0x7fb8ff, size: 0.32, transparent: true, opacity: 0.75, sizeAttenuation: true,
-  })));
-
-  function updateScroll(dz) {
-    crossLines.position.z = (crossLines.position.z + dz) % CROSS_STEP;
-    const sp = starGeo.attributes.position.array;
-    for (let i = 0; i < STAR_COUNT; i++) {
-      sp[i * 3 + 2] += dz * 0.55;
-      if (sp[i * 3 + 2] > 18) sp[i * 3 + 2] -= 148;
+  /* ---- 滚动星尘粒子：三层发光、逐颗闪烁、轻微视差 ---- */
+  function makeLayer(count, size, opacity, tintFn, drift) {
+    const pos = new Float32Array(count * 3);
+    const col = new Float32Array(count * 3);
+    const base = new Float32Array(count * 3);
+    const phase = new Float32Array(count);
+    const fade = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3]     = (Math.random() - 0.5) * 90;
+      pos[i * 3 + 1] = Math.random() * 30 + 0.5;
+      pos[i * 3 + 2] = Math.random() * 148 - 130;
+      const c = tintFn();
+      base[i * 3] = c[0]; base[i * 3 + 1] = c[1]; base[i * 3 + 2] = c[2];
+      col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
+      phase[i] = Math.random() * Math.PI * 2;
+      fade[i] = 0.8 + Math.random() * 2.6;
     }
-    starGeo.attributes.position.needsUpdate = true;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const mat = new THREE.PointsMaterial({
+      size, vertexColors: true, transparent: true, opacity,
+      depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true,
+    });
+    const pts = new THREE.Points(geo, mat);
+    scene.add(pts);
+    return { geo, mat, base, phase, fade, drift, count, col };
+  }
+
+  const TAU = Math.PI * 2;
+  const layers = [
+    // 远程尘埃：细密暗蓝，漂移最慢
+    makeLayer(240, 0.16, 0.5,
+      () => [0.42, 0.55, 1.0].map((v) => v * (0.7 + Math.random() * 0.5)), 0.38),
+    // 中层火花：白/青/紫，活力闪烁
+    makeLayer(150, 0.34, 0.9,
+      () => [[1, 1, 1], [0.5, 0.95, 1], [0.72, 0.62, 1]][(Math.random() * 3) | 0], 0.55),
+    // 近层微光：柔和大点，慢漂成光尘
+    makeLayer(60, 0.8, 0.5,
+      () => [[0.9, 0.98, 1], [0.55, 0.9, 1], [1, 0.9, 0.68]][(Math.random() * 3) | 0], 0.45),
+  ];
+
+  function updateScroll(dz, t) {
+    crossLines.position.z = (crossLines.position.z + dz) % CROSS_STEP;
+
+    // 星尘每帧：往后漂 + 逐颗闪烁
+    for (let li = 0; li < layers.length; li++) {
+      const L = layers[li];
+      const sp = L.geo.attributes.position.array;
+      for (let i = 0; i < L.count; i++) {
+        sp[i * 3 + 2] += dz * L.drift;
+        if (sp[i * 3 + 2] > 18) sp[i * 3 + 2] -= 148;
+      }
+      L.geo.attributes.position.needsUpdate = true;
+
+      // 每层一个缓慢的整体呼吸
+      L.mat.opacity = (li === 1 ? 0.9 : 0.5) * (0.85 + 0.15 * Math.sin(t * 0.4 + li * 1.8));
+
+      const c = L.col;
+      for (let i = 0; i < L.count; i++) {
+        const tw = 0.55 + 0.45 * Math.sin(t * L.fade[i] + L.phase[i]);
+        c[i * 3]     = L.base[i * 3] * tw;
+        c[i * 3 + 1] = L.base[i * 3 + 1] * tw;
+        c[i * 3 + 2] = L.base[i * 3 + 2] * tw;
+      }
+      L.geo.attributes.color.needsUpdate = true;
+    }
   }
 
   return { updateScroll };

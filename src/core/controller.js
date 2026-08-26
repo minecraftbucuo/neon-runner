@@ -138,7 +138,7 @@ export function createController(ctx) {
     }
 
     // 世界滚动与特效
-    world.updateScroll(G.speed * dt);
+    world.updateScroll(G.speed * dt, t);
     fx.update(dt);
     player.update(dt, G.targetLane);
 
