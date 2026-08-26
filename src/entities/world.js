@@ -1,8 +1,9 @@
-// ---------- 静态赛道世界：地面 / 车道线 / 横向刻度线 / 护栏 ----------
+// ---------- 静态赛道世界：地面 / 车道线 / 横向刻度线 / 护栏 / 滚动粒子 ----------
 import * as THREE from 'three';
 import { LANE_W } from '../config.js';
 
-const CROSS_STEP = 4; // 横向刻度线间距（滚动按此取模循环）
+const CROSS_STEP = 4;      // 横向刻度线间距（滚动按此取模循环）
+const STAR_COUNT = 350;    // 滚动星尘粒子
 
 export function createWorld(scene) {
   // 地面底板：宽度收到最外侧红护栏(±8.3)附近，轨道之外即为星空虚空，
@@ -56,8 +57,27 @@ export function createWorld(scene) {
   rail(-6.1, 0x29ffe3); rail(6.1, 0x29ffe3);
   rail(-8.3, 0x7e1c46); rail(8.3, 0x7e1c46);
 
+  // 滚动星尘粒子（随车速漂移，营造速度感）
+  const starPos = new Float32Array(STAR_COUNT * 3);
+  for (let i = 0; i < STAR_COUNT; i++) {
+    starPos[i * 3]     = (Math.random() - 0.5) * 90;
+    starPos[i * 3 + 1] = Math.random() * 30 + 0.5;
+    starPos[i * 3 + 2] = Math.random() * 148 - 130;
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+    color: 0x7fb8ff, size: 0.32, transparent: true, opacity: 0.75, sizeAttenuation: true,
+  })));
+
   function updateScroll(dz) {
     crossLines.position.z = (crossLines.position.z + dz) % CROSS_STEP;
+    const sp = starGeo.attributes.position.array;
+    for (let i = 0; i < STAR_COUNT; i++) {
+      sp[i * 3 + 2] += dz * 0.55;
+      if (sp[i * 3 + 2] > 18) sp[i * 3 + 2] -= 148;
+    }
+    starGeo.attributes.position.needsUpdate = true;
   }
 
   return { updateScroll };
