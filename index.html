@@ -24,10 +24,20 @@
 
 <div id="overlay">
   <div id="title">霓虹疾驰</div>
-  <div id="msg">← → 或 A / D 换道躲避 · 按住 W 冲刺<br>吃金币 · 别撞上红色方块</div>
-  <button id="startBtn">开始游戏</button>
+  <div id="subtitle">N E O N · D A S H</div>
+  <div id="msg">在霓虹赛道上飞驰，躲开红色方块<br>吃金币 · 活得更久 · 冲得更快</div>
+  <div id="bestLine" class="hidden-el"></div>
+  <div class="btn-row">
+    <button id="startBtn">开始游戏</button>
+    <button id="menuBtn" class="hidden-el">返回菜单</button>
+  </div>
+  <div id="keysRow">
+    <span><kbd>←</kbd><kbd>→</kbd> 换道</span>
+    <span><kbd>W</kbd> 冲刺</span>
+    <span><kbd>空格</kbd> 开始 / 重开</span>
+  </div>
 </div>
-<div id="hint">按住 W 冲刺 · 空格 开始 / 重开 · 手机左右滑动 · M 音乐开关</div>
+<div id="hint">按住 W 冲刺 · 空格 开始 / 重开 · Esc 返回菜单（结算时） · 手机左右滑动 · M 音乐开关</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>

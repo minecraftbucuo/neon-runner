@@ -37,6 +37,25 @@ export function createController(ctx) {
     else if (G.mode === 'over' && G.overlayShown) resetRun();
   }
 
+  /** 从结算界面返回主菜单（清场、待机漂移） */
+  function toMenu() {
+    if (!(G.mode === 'over' && G.overlayShown)) return;
+    obstacles.recycleAll();
+    coins.recycleAll();
+    fx.clear();
+    Object.assign(G, {
+      mode: 'ready',
+      speed: 6,
+      elapsed: 0, distance: 0, coins: 0, score: 0,
+      targetLane: 0, runPhase: 0, shake: 0,
+      distSinceSpawn: 0, nextGap: 18,
+      overVy: 0, overTimer: 0, overlayShown: false,
+    });
+    player.resetLook();
+    hud.setScore(0, 0);
+    overlay.showMenu(G.best);
+  }
+
   function applyMove(dir) {
     if (G.mode !== 'playing') return;
     const nl = Math.max(-2, Math.min(2, G.targetLane + dir));
@@ -146,5 +165,5 @@ export function createController(ctx) {
     camera.lookAt(G.camX, 1.2, -10);
   }
 
-  return { frameUpdate, primaryAction };
+  return { frameUpdate, primaryAction, toMenu };
 }

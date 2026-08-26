@@ -59,14 +59,16 @@ function boot() {
   bus.on('run:crash', () => sfx.crash());
   bus.on('run:start', () => { initAudio(); sfx.go(); });
   bus.on('ui:primary', () => controller.primaryAction());
+  bus.on('ui:menu', () => controller.toMenu());
   bus.on('ui:music-toggle', () => { initAudio(); toggleMusic(); });
   bus.on('audio:unlock', () => initAudio());
 
   // 输入与 UI
   setupInput(renderer.domElement);
   overlay.onPrimary(() => controller.primaryAction());
+  overlay.onMenu(() => controller.toMenu());
   hud.setBest(G.best);
-  overlay.showReady();
+  overlay.showMenu(G.best);
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;

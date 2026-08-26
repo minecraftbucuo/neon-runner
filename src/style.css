@@ -41,3 +41,36 @@ canvas { display:block; }
   text-shadow:0 0 14px rgba(255,213,74,.65); opacity:0;
   transition:opacity .15s ease, transform .15s ease; z-index:6; pointer-events:none; }
 #boostTag.on { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ---------- 菜单 / 结算界面 ---------- */
+.hidden-el { display:none !important; }
+
+@keyframes titleGlow {
+  0%,100% { text-shadow:0 0 18px rgba(41,255,227,.65), 0 0 48px rgba(41,255,227,.3),
+            0 0 90px rgba(255,45,120,.25); }
+  50%     { text-shadow:0 0 10px rgba(41,255,227,.4),  0 0 26px rgba(41,255,227,.18),
+            0 0 56px rgba(255,45,120,.14); }
+}
+#title { animation:titleGlow 2.8s ease-in-out infinite; }
+
+#subtitle { margin:-8px 0 20px; color:#3f7d8c;
+  font-size:min(2.6vw,14px); letter-spacing:12px; text-indent:12px; }
+#msg { margin-bottom:24px; }
+
+#bestLine { color:var(--gold); font-size:15px; letter-spacing:2px; margin-bottom:26px;
+  text-shadow:0 0 12px rgba(255,213,74,.45); font-variant-numeric:tabular-nums; }
+
+.btn-row { display:flex; gap:16px; align-items:center; justify-content:center; }
+
+#menuBtn { cursor:pointer; background:rgba(255,45,120,.05); color:#ff9ec0;
+  border:1px solid rgba(255,45,120,.55); border-radius:999px; padding:13px 34px;
+  font-size:15px; letter-spacing:4px; transition:all .18s ease; font-family:inherit; }
+#menuBtn:hover { background:rgba(255,45,120,.16);
+  box-shadow:0 0 22px rgba(255,45,120,.35); transform:translateY(-1px); }
+
+#keysRow { display:flex; gap:26px; margin-top:34px; color:#7fb3c4;
+  font-size:13px; letter-spacing:2px; flex-wrap:wrap; justify-content:center; }
+kbd { display:inline-block; min-width:24px; padding:3px 8px; margin:0 3px;
+  border:1px solid rgba(41,255,227,.4); border-bottom-width:2px; border-radius:6px;
+  background:rgba(41,255,227,.06); color:#bff7ee;
+  font-family:inherit; font-size:12px; text-align:center; }

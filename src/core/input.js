@@ -29,6 +29,8 @@ export function setupInput(canvas) {
         push({ type: 'boost', on: true }); ev.preventDefault(); break;
       case 'm': case 'M':
         bus.emit('ui:music-toggle'); ev.preventDefault(); break;
+      case 'Escape':
+        bus.emit('ui:menu'); break;
       case ' ': case 'Spacebar': case 'Enter':
         bus.emit('ui:primary'); ev.preventDefault(); break;
     }
