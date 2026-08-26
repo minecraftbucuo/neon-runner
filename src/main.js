@@ -6,6 +6,7 @@ import { G } from './core/state.js';
 import { setupInput } from './core/input.js';
 import { createController } from './core/controller.js';
 import { createWorld } from './entities/world.js';
+import { createSpace } from './entities/space.js';
 import { createPlayer } from './entities/player.js';
 import { createObstacles } from './entities/obstacles.js';
 import { createCoins } from './entities/coins.js';
@@ -45,6 +46,7 @@ function boot() {
 
   // 各系统
   const world = createWorld(scene);
+  const space = createSpace(scene, camera);
   const player = createPlayer(scene);
   const obstacles = createObstacles(scene);
   const coins = createCoins(scene);
@@ -83,6 +85,7 @@ function boot() {
     const dt = Math.min(clock.getDelta(), 0.05);
     const t = clock.elapsedTime;
     controller.frameUpdate(dt, t);
+    space.update(dt, t);
     setEnergy(G.musicEnergy);
     updateWind(G.boostingNow, dt, t);
     renderer.render(scene, camera);
