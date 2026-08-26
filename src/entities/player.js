@@ -1,4 +1,6 @@
-// ---------- 玩家：发光方块 + 贴地假阴影 ----------
+// ---------- 玩家：发光方块 + 贴地假阴影 + 冲刺流光尾 ----------
+// 光尾 = 冲刺时从玩家身上向后喷射的光条池：每根光条向 -z（镜头深处）
+// 飞离、边飞边拉长、逐帧淡出。玩家本体不前进，尾巴必须自己飞才有动感。
 import * as THREE from 'three';
 import { G } from '../core/state.js';
 import { LANE_W } from '../config.js';
@@ -32,53 +34,71 @@ export function createPlayer(scene) {
   shadow.position.y = 0.02;
   scene.add(shadow);
 
-  /* ---- 冲刺残影尾巴（彗尾式残像） ---- */
-  const GHOST_N = 8;
-  const ghostBodyMat = new THREE.MeshBasicMaterial({
-    color: 0x29ffe3, transparent: true, opacity: 0,
+  /* ---- 冲刺流光尾：向后喷射的光条池 ---- */
+  const STREAK_N = 14;
+  const MAX_LIFE = 0.32;
+  const sPos = new Float32Array(STREAK_N * 2 * 3);
+  const sCol = new Float32Array(STREAK_N * 2 * 3);
+  const sGeo = new THREE.BufferGeometry();
+  sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+  sGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
+  const sMat = new THREE.LineBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 1,
     blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
   });
-  const ghostEdgeMat = new THREE.LineBasicMaterial({
-    color: 0xbffff5, transparent: true, opacity: 0, fog: false,
-  });
-  const ghostGeo = new THREE.EdgesGeometry(bodyGeo);
-  const ghosts = [];
-  for (let i = 0; i < GHOST_N; i++) {
-    const m = new THREE.Mesh(bodyGeo, ghostBodyMat);
-    m.add(new THREE.LineSegments(ghostGeo, ghostEdgeMat));
-    m.visible = false;
-    scene.add(m);
-    ghosts.push({ mesh: m, life: 0, maxLife: 0.3, phase: i * 1.3 });
-  }
-  let ghostTimer = 0;
+  const streaks = new THREE.LineSegments(sGeo, sMat);
+  streaks.frustumCulled = false;
+  scene.add(streaks);
 
-  function updateGhosts(dt) {
-    // 冲刺中：按车速决定残影间隔，越快越密
+  const pool = [];
+  for (let i = 0; i < STREAK_N; i++) {
+    pool.push({ life: -1, head: { x: 0, y: 0, z: 0 }, len: 0, spd: 0 });
+  }
+  let sTimer = 0;
+
+  function updateTrail(dt) {
+    // 冲刺中：按车速决定喷射间隔，越快越密
     if (G.mode === 'playing' && G.boostingNow) {
-      ghostTimer += dt;
-      const interval = Math.max(0.022, 0.05 - G.speed * 0.0008);
-      if (ghostTimer >= interval) {
-        ghostTimer = 0;
-        const g = ghosts.find((x) => x.life <= 0);
-        if (g) {
-          g.life = g.maxLife;
-          g.mesh.position.copy(group.position);
-          g.mesh.rotation.copy(group.rotation);
-          g.mesh.visible = true;
+      sTimer += dt;
+      const interval = Math.max(0.02, 0.045 - G.speed * 0.0008);
+      if (sTimer >= interval) {
+        sTimer = 0;
+        const s = pool.find((x) => x.life <= 0);
+        if (s) {
+          s.life = MAX_LIFE;
+          s.head.x = group.position.x + (Math.random() - 0.5) * 0.5;
+          s.head.y = 0.5 + Math.random() * 1.0;   // 沿身体高度随机
+          s.head.z = 0;
+          s.len = 1.0 + G.speed * 0.07;           // 初始长度随速度
+          s.spd = 14 + G.speed * 0.5;             // 向后飞离速度
         }
       }
     }
-    // 已有残影：淡出 + 微微放大
-    for (const g of ghosts) {
-      if (g.life <= 0) { g.mesh.visible = false; continue; }
-      g.life -= dt;
-      const k = Math.max(0, g.life / g.maxLife);
-      const s = 1.03 + (1 - k) * 0.22;
-      g.mesh.scale.set(s, s, s);
-      g.mesh.material.opacity = 0.45 * k;
-      g.mesh.children[0].material.opacity = 0.35 * k;
-      if (g.life <= 0) g.mesh.visible = false;
+
+    // 逐段更新：向后飞 + 拉长 + 淡出
+    for (let i = 0; i < STREAK_N; i++) {
+      const s = pool[i];
+      const b = i * 6;
+      if (s.life <= 0) {
+        sPos[b] = 0; sPos[b + 1] = -999; sPos[b + 2] = 0;
+        sPos[b + 3] = 0; sPos[b + 4] = -999; sPos[b + 5] = 0;
+        sCol[b] = 0; sCol[b + 1] = 0; sCol[b + 2] = 0;
+        sCol[b + 3] = 0; sCol[b + 4] = 0; sCol[b + 5] = 0;
+        continue;
+      }
+      s.life -= dt;
+      const k = Math.max(0, s.life / MAX_LIFE);
+      s.head.z -= s.spd * dt; // 向镜头深处飞离
+      const tailZ = s.head.z - s.len * (1 + (1 - k) * 0.8); // 尾端更快 → 拉长
+      sPos[b] = s.head.x; sPos[b + 1] = s.head.y; sPos[b + 2] = s.head.z;
+      sPos[b + 3] = s.head.x; sPos[b + 4] = s.head.y; sPos[b + 5] = tailZ;
+      const bright = k * k;
+      const r = 0.35 * bright, g = 1.0 * bright, bl = 0.9 * bright;
+      sCol[b] = r; sCol[b + 1] = g; sCol[b + 2] = bl;
+      sCol[b + 3] = r * 0.45; sCol[b + 4] = g * 0.45; sCol[b + 5] = bl * 0.45;
     }
+    sGeo.attributes.position.needsUpdate = true;
+    sGeo.attributes.color.needsUpdate = true;
   }
 
   /** 平时每帧调用；over 状态下只跟影子（身体翻飞由 controller 负责） */
@@ -106,7 +126,7 @@ export function createPlayer(scene) {
     shadow.scale.set(sh, sh, sh);
     shadow.material.opacity = 0.3 * sh;
 
-    updateGhosts(dt);
+    updateTrail(dt);
   }
 
   /** 撞毁后变红 */
@@ -115,14 +135,18 @@ export function createPlayer(scene) {
     mat.emissiveIntensity = 1.5;
   }
 
-  /** 重置位置与外观（残影一并清空） */
+  /** 重置位置与外观（流光尾一并清空） */
   function resetLook() {
     mat.emissive.setHex(0x17e9c5);
     mat.emissiveIntensity = 0.9;
     group.rotation.set(0, 0, 0);
     group.position.set(0, 1.0, 0);
-    for (const g of ghosts) { g.life = 0; g.mesh.visible = false; }
-    ghostTimer = 0;
+    for (const s of pool) { s.life = -1; }
+    sTimer = 0;
+    sPos.fill(0);
+    sCol.fill(0);
+    sGeo.attributes.position.needsUpdate = true;
+    sGeo.attributes.color.needsUpdate = true;
   }
 
   return { group, mat, update, flashDead, resetLook };
