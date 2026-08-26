@@ -1,6 +1,6 @@
 // ---------- 玩家：发光方块 + 贴地假阴影 + 冲刺流光尾 ----------
-// 光尾 = 冲刺时从玩家身上向后喷射的光条池：每根光条向 -z（镜头深处）
-// 飞离、边飞边拉长、逐帧淡出。玩家本体不前进，尾巴必须自己飞才有动感。
+// 光尾 = 冲刺时从玩家身上向后(靠近镜头侧,+z)流出的光条池：
+// 玩家朝远处飞，尾巴拖在身后往镜头这边流、边流边拉长边淡出。
 import * as THREE from 'three';
 import { G } from '../core/state.js';
 import { LANE_W } from '../config.js';
@@ -70,7 +70,7 @@ export function createPlayer(scene) {
           s.head.y = 0.5 + Math.random() * 1.0;   // 沿身体高度随机
           s.head.z = 0;
           s.len = 1.0 + G.speed * 0.07;           // 初始长度随速度
-          s.spd = 14 + G.speed * 0.5;             // 向后飞离速度
+          s.spd = G.speed * 0.9 + 5;              // 随世界流向镜头(+z)，略快于世界保证可见流动
         }
       }
     }
@@ -88,8 +88,8 @@ export function createPlayer(scene) {
       }
       s.life -= dt;
       const k = Math.max(0, s.life / MAX_LIFE);
-      s.head.z -= s.spd * dt; // 向镜头深处飞离
-      const tailZ = s.head.z - s.len * (1 + (1 - k) * 0.8); // 尾端更快 → 拉长
+      s.head.z += s.spd * dt; // 向镜头方向(+z)流出：尾巴拖在玩家身后（靠近镜头一侧）
+      const tailZ = s.head.z + s.len * (1 + (1 - k) * 0.8); // 尾端更快 → 拉长
       sPos[b] = s.head.x; sPos[b + 1] = s.head.y; sPos[b + 2] = s.head.z;
       sPos[b + 3] = s.head.x; sPos[b + 4] = s.head.y; sPos[b + 5] = tailZ;
       const bright = k * k;
