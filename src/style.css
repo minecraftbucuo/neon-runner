@@ -60,10 +60,10 @@ canvas { display:block; }
 #bestLine { color:var(--gold); font-size:15px; letter-spacing:2px; margin-bottom:26px;
   text-shadow:0 0 12px rgba(255,213,74,.45); font-variant-numeric:tabular-nums; }
 
-.btn-row { display:flex; gap:16px; align-items:center; justify-content:center; }
+.btn-row { display:flex; flex-direction:column; gap:14px; align-items:center; }
 
 #menuBtn { cursor:pointer; background:rgba(255,45,120,.05); color:#ff9ec0;
-  border:1px solid rgba(255,45,120,.55); border-radius:999px; padding:13px 34px;
+  border:1px solid rgba(255,45,120,.55); border-radius:999px; padding:13px 52px;
   font-size:15px; letter-spacing:4px; transition:all .18s ease; font-family:inherit; }
 #menuBtn:hover { background:rgba(255,45,120,.16);
   box-shadow:0 0 22px rgba(255,45,120,.35); transform:translateY(-1px); }
