@@ -32,6 +32,55 @@ export function createPlayer(scene) {
   shadow.position.y = 0.02;
   scene.add(shadow);
 
+  /* ---- 冲刺残影尾巴（彗尾式残像） ---- */
+  const GHOST_N = 8;
+  const ghostBodyMat = new THREE.MeshBasicMaterial({
+    color: 0x29ffe3, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+  });
+  const ghostEdgeMat = new THREE.LineBasicMaterial({
+    color: 0xbffff5, transparent: true, opacity: 0, fog: false,
+  });
+  const ghostGeo = new THREE.EdgesGeometry(bodyGeo);
+  const ghosts = [];
+  for (let i = 0; i < GHOST_N; i++) {
+    const m = new THREE.Mesh(bodyGeo, ghostBodyMat);
+    m.add(new THREE.LineSegments(ghostGeo, ghostEdgeMat));
+    m.visible = false;
+    scene.add(m);
+    ghosts.push({ mesh: m, life: 0, maxLife: 0.3, phase: i * 1.3 });
+  }
+  let ghostTimer = 0;
+
+  function updateGhosts(dt) {
+    // 冲刺中：按车速决定残影间隔，越快越密
+    if (G.mode === 'playing' && G.boostingNow) {
+      ghostTimer += dt;
+      const interval = Math.max(0.022, 0.05 - G.speed * 0.0008);
+      if (ghostTimer >= interval) {
+        ghostTimer = 0;
+        const g = ghosts.find((x) => x.life <= 0);
+        if (g) {
+          g.life = g.maxLife;
+          g.mesh.position.copy(group.position);
+          g.mesh.rotation.copy(group.rotation);
+          g.mesh.visible = true;
+        }
+      }
+    }
+    // 已有残影：淡出 + 微微放大
+    for (const g of ghosts) {
+      if (g.life <= 0) { g.mesh.visible = false; continue; }
+      g.life -= dt;
+      const k = Math.max(0, g.life / g.maxLife);
+      const s = 1.03 + (1 - k) * 0.22;
+      g.mesh.scale.set(s, s, s);
+      g.mesh.material.opacity = 0.45 * k;
+      g.mesh.children[0].material.opacity = 0.35 * k;
+      if (g.life <= 0) g.mesh.visible = false;
+    }
+  }
+
   /** 平时每帧调用；over 状态下只跟影子（身体翻飞由 controller 负责） */
   function update(dt, targetLane) {
     if (G.mode !== 'over') {
@@ -56,6 +105,8 @@ export function createPlayer(scene) {
     const sh = 1 / (1 + Math.max(0, group.position.y - 1) * 1.6);
     shadow.scale.set(sh, sh, sh);
     shadow.material.opacity = 0.3 * sh;
+
+    updateGhosts(dt);
   }
 
   /** 撞毁后变红 */
@@ -64,12 +115,14 @@ export function createPlayer(scene) {
     mat.emissiveIntensity = 1.5;
   }
 
-  /** 重置位置与外观 */
+  /** 重置位置与外观（残影一并清空） */
   function resetLook() {
     mat.emissive.setHex(0x17e9c5);
     mat.emissiveIntensity = 0.9;
     group.rotation.set(0, 0, 0);
     group.position.set(0, 1.0, 0);
+    for (const g of ghosts) { g.life = 0; g.mesh.visible = false; }
+    ghostTimer = 0;
   }
 
   return { group, mat, update, flashDead, resetLook };
