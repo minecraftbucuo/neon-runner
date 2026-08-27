@@ -62,6 +62,7 @@ function boot() {
   bus.on('run:start', () => { initAudio(); sfx.go(); });
   bus.on('ui:primary', () => controller.primaryAction());
   bus.on('ui:menu', () => controller.toMenu());
+  bus.on('ui:pause', () => controller.togglePause());
   bus.on('ui:music-toggle', () => { initAudio(); toggleMusic(); });
   bus.on('audio:unlock', () => initAudio());
 

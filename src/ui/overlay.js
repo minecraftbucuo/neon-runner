@@ -57,6 +57,20 @@ export function createOverlay() {
     show();
   }
 
+  /** 对局暂停：继续 或 返回菜单 */
+  function showPause() {
+    $title.textContent = '已暂停';
+    $sub.classList.add('hidden-el');
+    $best.classList.add('hidden-el');
+    $keys.classList.add('hidden-el');
+    $turbo.classList.add('hidden-el');
+    $auto.classList.add('hidden-el');
+    $msg.innerHTML = '按 <b style="color:#29ffe3">ESC</b> 或点击下方按钮继续';
+    $start.textContent = '继续游戏';
+    $menu.classList.remove('hidden-el');
+    show();
+  }
+
   function showFatal() {
     $title.textContent = '无法运行';
     $sub.classList.add('hidden-el');
@@ -73,6 +87,7 @@ export function createOverlay() {
   return {
     showMenu,
     showOver,
+    showPause,
     showFatal,
     hide,
     onPrimary(cb) {

@@ -30,7 +30,7 @@ export function setupInput(canvas) {
       case 'm': case 'M':
         bus.emit('ui:music-toggle'); ev.preventDefault(); break;
       case 'Escape':
-        bus.emit('ui:menu'); break;
+        bus.emit('ui:pause'); break;   // 对局中暂停/继续；结算界面回菜单
       case ' ': case 'Spacebar': case 'Enter':
         bus.emit('ui:primary'); ev.preventDefault(); break;
     }

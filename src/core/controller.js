@@ -19,6 +19,7 @@ export function createController(ctx) {
       mode: 'playing',
       gameMode: mode,
       demo: false,          // 真正开局：菜单演示局结束
+      paused: false,        // 新局不继承暂停状态
       speed: mode === 'normal' ? BASE_SPD : TURBO_START_SPD,
       elapsed: 0, distance: 0, coins: 0, score: 0,
       targetLane: 0, runPhase: 0, shake: 0,
@@ -68,8 +69,27 @@ export function createController(ctx) {
   }
 
   function primaryAction() {
-    if (G.mode === 'ready') resetRun('normal');
+    if (G.paused) resume();
+    else if (G.mode === 'ready') resetRun('normal');
     else if (G.mode === 'over' && G.overlayShown) resetRun(G.gameMode); // 结算重开沿用本局模式
+  }
+
+  /* ---- 对局暂停（ESC）----
+     只冻结真实对局（菜单演示局不需要）；世界/障碍/相机全部停住，
+     浮层给"继续 / 返回菜单"。再按 ESC 或点继续即恢复。 */
+  function togglePause() {
+    if (G.paused) { resume(); return; }
+    if (G.mode === 'over' && G.overlayShown) { toMenu(); return; } // 结算界面 ESC：回菜单
+    if (G.mode !== 'playing' || G.demo) return;
+    G.paused = true;
+    G.keyBoost = false;   // 暂停时若按着冲刺，恢复后不应自动冲刺
+    overlay.showPause();
+  }
+
+  function resume() {
+    if (!G.paused) return;
+    G.paused = false;
+    overlay.hide();
   }
 
   /** 主菜单进入极速模式：全程自动加速，不能手动加减速 */
@@ -329,9 +349,10 @@ export function createController(ctx) {
     return lanes.reduce((a, b) => Math.abs(b - from) < Math.abs(a - from) ? b : a);
   }
 
-  /** 从结算界面返回主菜单（清场、开启背景演示局） */
+  /** 从结算/暂停界面返回主菜单（清场、开启背景演示局） */
   function toMenu() {
-    if (!(G.mode === 'over' && G.overlayShown)) return;
+    if (!((G.mode === 'over' && G.overlayShown) || G.paused)) return;
+    G.paused = false;
     Object.assign(G, {
       mode: 'ready',
       gameMode: 'normal',
@@ -384,6 +405,9 @@ export function createController(ctx) {
       if (cmd.type === 'move') { if (G.gameMode !== 'auto') applyMove(cmd.dir); }
       else if (cmd.type === 'boost') G.keyBoost = cmd.on;
     }
+
+    // 暂停：世界完全冻结（不清指令队列，ESC 恢复后松键状态正确）
+    if (G.paused) return;
 
     // 自动驾驶：机器人每帧决策（传真实帧长，掉帧时模拟自动放慢节奏；
     // 菜单演示局同样由机器人接管，撞毁停留期不决策）
@@ -512,5 +536,5 @@ export function createController(ctx) {
   // 启动即开菜单演示局：背景不再是静止待机，机器人一直在跑
   startDemo();
 
-  return { frameUpdate, primaryAction, startTurbo, startAuto, toMenu };
+  return { frameUpdate, primaryAction, startTurbo, startAuto, toMenu, togglePause };
 }
