@@ -29,6 +29,7 @@ export function createController(ctx) {
     rng = new Rng(G.seed);
     player.resetLook();
     hud.setScore(0, 0);
+    hud.setBest(G.best[mode]); // HUD 最佳显示当前模式的纪录
     overlay.hide();
     bus.emit('run:start', { seed: G.seed });
   }
@@ -60,7 +61,8 @@ export function createController(ctx) {
     });
     player.resetLook();
     hud.setScore(0, 0);
-    overlay.showMenu(G.best);
+    hud.setBest(G.best.normal);
+    overlay.showMenu(G.best.normal, G.best.turbo);
   }
 
   function applyMove(dir) {
@@ -76,10 +78,10 @@ export function createController(ctx) {
     G.overVy = 7.5;
     G.shake = 0.7;
     player.flashDead();
-    if (G.score > G.best) {
-      G.best = G.score;
-      saveBest();
-      hud.setBest(G.best);
+    if (G.score > G.best[G.gameMode]) {
+      G.best[G.gameMode] = G.score;
+      saveBest(G.gameMode);
+      hud.setBest(G.best[G.gameMode]);
     }
     bus.emit('run:crash', { score: G.score });
   }
@@ -144,7 +146,7 @@ export function createController(ctx) {
       player.group.rotation.x -= dt * 9;
       if (G.overTimer > 0.55 && !G.overlayShown) {
         G.overlayShown = true;
-        overlay.showOver(G.score, G.coins, G.best);
+        overlay.showOver(G.score, G.coins, G.best[G.gameMode], G.gameMode);
       }
     }
 

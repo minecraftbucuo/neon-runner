@@ -70,8 +70,8 @@ function boot() {
   overlay.onPrimary(() => controller.primaryAction());
   overlay.onTurbo(() => controller.startTurbo());
   overlay.onMenu(() => controller.toMenu());
-  hud.setBest(G.best);
-  overlay.showMenu(G.best);
+  hud.setBest(G.best.normal);
+  overlay.showMenu(G.best.normal, G.best.turbo);
 
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;

@@ -16,12 +16,15 @@ export function createOverlay() {
   const hide = () => $over.classList.add('hidden');
 
   /** 主菜单 */
-  function showMenu(best) {
+  function showMenu(best, turboBest) {
     $title.textContent = '霓虹疾驰';
     $sub.classList.remove('hidden-el');
     $msg.innerHTML = '在霓虹赛道上飞驰，躲开红色方块<br>吃金币 · 活得更久 · 冲得更快';
-    if (best > 0) {
-      $best.textContent = '最高纪录 ' + best;
+    if ((best || 0) > 0 || (turboBest || 0) > 0) {
+      const parts = [];
+      if (best > 0) parts.push('普通 ' + best);
+      if (turboBest > 0) parts.push('极速 ' + turboBest);
+      $best.textContent = '最高纪录 · ' + parts.join('　');
       $best.classList.remove('hidden-el');
     } else {
       $best.classList.add('hidden-el');
@@ -34,13 +37,14 @@ export function createOverlay() {
   }
 
   /** 死亡结算：再来一局 或 返回菜单 */
-  function showOver(score, coins, best) {
+  function showOver(score, coins, best, gameMode) {
+    const modeTag = gameMode === 'turbo' ? '极速模式 · ' : '';
     $title.textContent = '撞毁了！';
     $sub.classList.add('hidden-el');
     $best.classList.add('hidden-el');
     $keys.classList.add('hidden-el');
     $turbo.classList.add('hidden-el');
-    $msg.innerHTML = '本局得分 <b style="color:#29ffe3">' + score +
+    $msg.innerHTML = modeTag + '本局得分 <b style="color:#29ffe3">' + score +
       '</b>　金币 ◆' + coins + '<br>' +
       (score >= best && score > 0 ? '★ 新纪录！' : '最高纪录 ' + best);
     $start.textContent = '再来一局';

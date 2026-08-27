@@ -2,10 +2,11 @@
 // 只放数据与持久化，不放行为；各模块读写这里，避免互相引用成网。
 import { BASE_SPD } from '../config.js';
 
-const BEST_KEY = 'neondash_best';
+const BEST_KEY = 'neondash_best';        // 普通模式纪录（沿用旧 key，兼容老玩家数据）
+const BEST_TURBO_KEY = 'neondash_best_turbo'; // 极速模式纪录
 
-function loadBest() {
-  try { return parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0; }
+function loadBest(key) {
+  try { return parseInt(localStorage.getItem(key) || '0', 10) || 0; }
   catch { return 0; }
 }
 
@@ -17,7 +18,7 @@ export const G = {
   distance: 0,          // 本局行驶距离
   coins: 0,             // 本局金币
   score: 0,             // 距离分 + 金币分
-  best: loadBest(),
+  best: { normal: loadBest(BEST_KEY), turbo: loadBest(BEST_TURBO_KEY) },
 
   targetLane: 0,
   runPhase: 0,          // 跑动相位（控制弹跳）
@@ -38,6 +39,7 @@ export const G = {
   seed: 0,              // 本局随机种子（联机时由服务器下发）
 };
 
-export function saveBest() {
-  try { localStorage.setItem(BEST_KEY, String(G.best)); } catch {}
+export function saveBest(gameMode) {
+  const key = gameMode === 'turbo' ? BEST_TURBO_KEY : BEST_KEY;
+  try { localStorage.setItem(key, String(G.best[gameMode])); } catch {}
 }
