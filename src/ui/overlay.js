@@ -9,6 +9,7 @@ export function createOverlay() {
   const $best   = document.getElementById('bestLine');
   const $start  = document.getElementById('startBtn');
   const $turbo  = document.getElementById('turboBtn');
+  const $auto   = document.getElementById('autoBtn');
   const $menu   = document.getElementById('menuBtn');
   const $keys   = document.getElementById('keysRow');
 
@@ -31,6 +32,7 @@ export function createOverlay() {
     }
     $start.textContent = '开始游戏';
     $turbo.classList.remove('hidden-el');
+    $auto.classList.remove('hidden-el');
     $menu.classList.add('hidden-el');
     $keys.classList.remove('hidden-el');
     show();
@@ -38,15 +40,18 @@ export function createOverlay() {
 
   /** 死亡结算：再来一局 或 返回菜单 */
   function showOver(score, coins, best, gameMode) {
-    const modeTag = gameMode === 'turbo' ? '极速模式 · ' : '';
+    const isAuto = gameMode === 'auto';
+    const modeTag = isAuto ? '自动驾驶 · ' : (gameMode === 'turbo' ? '极速模式 · ' : '');
     $title.textContent = '撞毁了！';
     $sub.classList.add('hidden-el');
     $best.classList.add('hidden-el');
     $keys.classList.add('hidden-el');
     $turbo.classList.add('hidden-el');
+    $auto.classList.add('hidden-el');
     $msg.innerHTML = modeTag + '本局得分 <b style="color:#29ffe3">' + score +
       '</b>　金币 ◆' + coins + '<br>' +
-      (score >= best && score > 0 ? '★ 新纪录！' : '最高纪录 ' + best);
+      (isAuto ? '机器人表演模式 · 纪录不保存'
+              : (score >= best && score > 0 ? '★ 新纪录！' : '最高纪录 ' + best));
     $start.textContent = '再来一局';
     $menu.classList.remove('hidden-el');
     show();
@@ -58,6 +63,7 @@ export function createOverlay() {
     $best.classList.add('hidden-el');
     $keys.classList.add('hidden-el');
     $turbo.classList.add('hidden-el');
+    $auto.classList.add('hidden-el');
     $menu.classList.add('hidden-el');
     $msg.innerHTML = '当前浏览器不支持 WebGL，无法进入游戏 :(';
     $start.style.display = 'none';
@@ -74,6 +80,9 @@ export function createOverlay() {
     },
     onTurbo(cb) {
       $turbo.addEventListener('click', (e) => { e.stopPropagation(); cb(); });
+    },
+    onAuto(cb) {
+      $auto.addEventListener('click', (e) => { e.stopPropagation(); cb(); });
     },
     onMenu(cb) {
       $menu.addEventListener('click', (e) => { e.stopPropagation(); cb(); });

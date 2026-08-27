@@ -69,6 +69,7 @@ function boot() {
   setupInput(renderer.domElement);
   overlay.onPrimary(() => controller.primaryAction());
   overlay.onTurbo(() => controller.startTurbo());
+  overlay.onAuto(() => controller.startAuto());
   overlay.onMenu(() => controller.toMenu());
   hud.setBest(G.best.normal);
   overlay.showMenu(G.best.normal, G.best.turbo);

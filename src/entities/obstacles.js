@@ -59,5 +59,14 @@ export function createObstacles(scene) {
     active.length = 0;
   }
 
-  return { place, update, hits, recycleAll };
+  /** 前方障碍快照（供自动驾驶决策）：[{lane, z}]
+      必须包含正在通过碰撞区的柱子（z<1.4），否则机器人看不到
+      身边的柱子，换道时会侧撞 */
+  function snapshot() {
+    return active
+      .filter(m => m.position.z < 1.4)
+      .map(m => ({ lane: Math.round(m.position.x / LANE_W), z: m.position.z }));
+  }
+
+  return { place, update, hits, recycleAll, snapshot };
 }

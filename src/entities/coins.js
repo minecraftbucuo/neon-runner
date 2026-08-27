@@ -59,5 +59,12 @@ export function createCoins(scene) {
     active.length = 0;
   }
 
-  return { line, update, recycleAll };
+  /** 前方金币快照（供自动驾驶决策）：[{lane, z}] */
+  function snapshot() {
+    return active
+      .filter(m => m.position.z < -1.5)
+      .map(m => ({ lane: Math.round(m.position.x / LANE_W), z: m.position.z }));
+  }
+
+  return { line, update, recycleAll, snapshot };
 }
