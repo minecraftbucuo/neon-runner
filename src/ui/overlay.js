@@ -13,7 +13,13 @@ export function createOverlay() {
   const $menu   = document.getElementById('menuBtn');
   const $keys   = document.getElementById('keysRow');
 
-  const show = () => $over.classList.remove('hidden');
+  // 重放 .pop 入场动画：先摘掉类，强制重排后再挂回去
+  const show = () => {
+    $over.classList.remove('pop');
+    void $over.offsetWidth;
+    $over.classList.add('pop');
+    $over.classList.remove('hidden');
+  };
   const hide = () => $over.classList.add('hidden');
 
   /** 主菜单 */
