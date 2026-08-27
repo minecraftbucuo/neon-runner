@@ -8,6 +8,7 @@ export function createOverlay() {
   const $msg    = document.getElementById('msg');
   const $best   = document.getElementById('bestLine');
   const $start  = document.getElementById('startBtn');
+  const $turbo  = document.getElementById('turboBtn');
   const $menu   = document.getElementById('menuBtn');
   const $keys   = document.getElementById('keysRow');
 
@@ -26,6 +27,7 @@ export function createOverlay() {
       $best.classList.add('hidden-el');
     }
     $start.textContent = '开始游戏';
+    $turbo.classList.remove('hidden-el');
     $menu.classList.add('hidden-el');
     $keys.classList.remove('hidden-el');
     show();
@@ -37,6 +39,7 @@ export function createOverlay() {
     $sub.classList.add('hidden-el');
     $best.classList.add('hidden-el');
     $keys.classList.add('hidden-el');
+    $turbo.classList.add('hidden-el');
     $msg.innerHTML = '本局得分 <b style="color:#29ffe3">' + score +
       '</b>　金币 ◆' + coins + '<br>' +
       (score >= best && score > 0 ? '★ 新纪录！' : '最高纪录 ' + best);
@@ -50,6 +53,7 @@ export function createOverlay() {
     $sub.classList.add('hidden-el');
     $best.classList.add('hidden-el');
     $keys.classList.add('hidden-el');
+    $turbo.classList.add('hidden-el');
     $menu.classList.add('hidden-el');
     $msg.innerHTML = '当前浏览器不支持 WebGL，无法进入游戏 :(';
     $start.style.display = 'none';
@@ -63,6 +67,9 @@ export function createOverlay() {
     hide,
     onPrimary(cb) {
       $start.addEventListener('click', (e) => { e.stopPropagation(); cb(); });
+    },
+    onTurbo(cb) {
+      $turbo.addEventListener('click', (e) => { e.stopPropagation(); cb(); });
     },
     onMenu(cb) {
       $menu.addEventListener('click', (e) => { e.stopPropagation(); cb(); });

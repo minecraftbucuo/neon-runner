@@ -3,7 +3,7 @@ import { G, saveBest } from './state.js';
 import { bus } from './bus.js';
 import { Rng } from './rng.js';
 import { drainCommands } from './input.js';
-import { BASE_SPD, MAX_SPD, BOOST_SPD, FOV_N, FOV_B, LANES } from '../config.js';
+import { BASE_SPD, MAX_SPD, BOOST_SPD, TURBO_ACCEL, TURBO_START_SPD, TURBO_MAX_SPD, FOV_N, FOV_B, LANES } from '../config.js';
 
 export function createController(ctx) {
   // ctx = { camera, world, player, obstacles, coins, fx, hud, overlay }
@@ -11,13 +11,14 @@ export function createController(ctx) {
 
   let rng = null; // 本局种子随机源（赛道可复现）
 
-  function resetRun() {
+  function resetRun(mode = 'normal') {
     obstacles.recycleAll();
     coins.recycleAll();
     fx.clear();
     Object.assign(G, {
       mode: 'playing',
-      speed: BASE_SPD,
+      gameMode: mode,
+      speed: mode === 'turbo' ? TURBO_START_SPD : BASE_SPD,
       elapsed: 0, distance: 0, coins: 0, score: 0,
       targetLane: 0, runPhase: 0, shake: 0,
       distSinceSpawn: 0, nextGap: 18,
@@ -33,8 +34,13 @@ export function createController(ctx) {
   }
 
   function primaryAction() {
-    if (G.mode === 'ready') resetRun();
-    else if (G.mode === 'over' && G.overlayShown) resetRun();
+    if (G.mode === 'ready') resetRun('normal');
+    else if (G.mode === 'over' && G.overlayShown) resetRun(G.gameMode); // 结算重开沿用本局模式
+  }
+
+  /** 主菜单进入极速模式：全程自动加速，不能手动加减速 */
+  function startTurbo() {
+    if (G.mode === 'ready') resetRun('turbo');
   }
 
   /** 从结算界面返回主菜单（清场、待机漂移） */
@@ -45,6 +51,7 @@ export function createController(ctx) {
     fx.clear();
     Object.assign(G, {
       mode: 'ready',
+      gameMode: 'normal',
       speed: 6,
       elapsed: 0, distance: 0, coins: 0, score: 0,
       targetLane: 0, runPhase: 0, shake: 0,
@@ -96,10 +103,14 @@ export function createController(ctx) {
       else if (cmd.type === 'boost') G.keyBoost = cmd.on;
     }
 
+    const turbo = G.gameMode === 'turbo';
+
     if (G.mode === 'playing') {
       G.elapsed += dt;
-      const baseSpd = Math.min(MAX_SPD, BASE_SPD + G.elapsed * 0.5);
-      const wantSpd = baseSpd + (G.keyBoost ? BOOST_SPD : 0);
+      // 极速模式：起步即高速，之后全程自动成长，冲刺键无效
+      const wantSpd = turbo
+        ? Math.min(TURBO_MAX_SPD, TURBO_START_SPD + G.elapsed * TURBO_ACCEL)
+        : Math.min(MAX_SPD, BASE_SPD + G.elapsed * 0.5) + (G.keyBoost ? BOOST_SPD : 0);
       G.speed += (wantSpd - G.speed) * Math.min(1, dt * 3.5);
       G.distance += G.speed * dt;
       G.score = Math.floor(G.distance) + G.coins * 10;
@@ -153,11 +164,18 @@ export function createController(ctx) {
       G.shake *= Math.exp(-4.5 * dt);
     }
 
-    // 冲刺视效 + 能量
-    G.boostingNow = (G.mode === 'playing' && G.keyBoost);
-    camera.fov += ((G.boostingNow ? FOV_B : FOV_N) - camera.fov) * Math.min(1, dt * 5);
+    // 冲刺视效 + 能量（极速模式：随速度攀升触发拖尾/风声，而非按键）
+    const turboFrac = (turbo && G.mode === 'playing')
+      ? Math.min(1, (G.speed - BASE_SPD) / (TURBO_MAX_SPD - BASE_SPD)) : 0;
+    G.boostingNow = turbo
+      ? (G.mode === 'playing' && turboFrac > 0.25)   // 提速到一定程度进入极速视效
+      : (G.mode === 'playing' && G.keyBoost);
+    const fovTarget = turbo
+      ? FOV_N + (FOV_B - FOV_N) * turboFrac           // 视场角随速度平滑拉宽
+      : (G.boostingNow ? FOV_B : FOV_N);
+    camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 5);
     camera.updateProjectionMatrix();
-    hud.setBoost(G.boostingNow);
+    hud.setBoost(G.boostingNow, turbo ? '»» 极速模式 ««' : '»» 加速中 ««');
 
     G.musicEnergy = G.boostingNow ? Math.min(1, G.musicEnergy + dt * 3)
                                   : Math.max(0, G.musicEnergy - dt * 1.5);
@@ -165,5 +183,5 @@ export function createController(ctx) {
     camera.lookAt(G.camX, 1.2, -10);
   }
 
-  return { frameUpdate, primaryAction, toMenu };
+  return { frameUpdate, primaryAction, startTurbo, toMenu };
 }

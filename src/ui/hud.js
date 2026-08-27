@@ -6,6 +6,7 @@ export function createHud() {
   const $best  = document.getElementById('bestVal');
   const $boost = document.getElementById('boostTag');
   let shownScore = -1;
+  let tagText = '»» 加速中 ««';
 
   return {
     /** 分数变化时才写 DOM */
@@ -18,7 +19,11 @@ export function createHud() {
     setBest(best) {
       $best.textContent = '最佳 ' + best;
     },
-    setBoost(on) {
+    setBoost(on, text) {
+      if (text !== undefined && text !== tagText) {
+        tagText = text;
+        $boost.textContent = text;
+      }
       $boost.classList.toggle('on', on);
     },
   };

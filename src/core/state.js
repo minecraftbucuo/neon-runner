@@ -11,6 +11,7 @@ function loadBest() {
 
 export const G = {
   mode: 'ready',        // ready | playing | over
+  gameMode: 'normal',   // normal | turbo（极速模式：全程自动加速，不可手动加减速）
   speed: 6,             // 当前世界速度（ready 界面用慢速漂移）
   elapsed: 0,           // 本局时长
   distance: 0,          // 本局行驶距离

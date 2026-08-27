@@ -68,6 +68,7 @@ function boot() {
   // 输入与 UI
   setupInput(renderer.domElement);
   overlay.onPrimary(() => controller.primaryAction());
+  overlay.onTurbo(() => controller.startTurbo());
   overlay.onMenu(() => controller.toMenu());
   hud.setBest(G.best);
   overlay.showMenu(G.best);
