@@ -1,5 +1,9 @@
 // ---------- 入口：组装所有模块 ----------
 import './style.css';
+// 字体：Orbitron（数字/英文科技感） + 马善政毛笔楷书（中文标题/按钮）
+import '@fontsource/orbitron/700.css';
+import '@fontsource/orbitron/900.css';
+import '@fontsource/ma-shan-zheng';
 import * as THREE from 'three';
 import { bus } from './core/bus.js';
 import { G } from './core/state.js';

@@ -1,4 +1,6 @@
-:root { --cyan:#29ffe3; --pink:#ff2d78; --gold:#ffd54a; }
+:root { --cyan:#29ffe3; --pink:#ff2d78; --gold:#ffd54a;
+  --font-display:'Ma Shan Zheng','STKaiti','KaiTi','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  --font-tech:'Orbitron','Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; }
 * { margin:0; padding:0; box-sizing:border-box; }
 html,body { width:100%; height:100%; overflow:hidden; background:#05060f;
   font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
@@ -8,11 +10,12 @@ canvas { display:block; }
 #hud { position:fixed; top:14px; left:0; right:0; display:flex;
   justify-content:space-between; padding:0 22px; pointer-events:none; z-index:5; }
 .hud-box { color:#dffcf6; text-shadow:0 0 12px rgba(41,255,227,.45); }
-.hud-label { font-size:11px; letter-spacing:3px; color:#6fa8b8; margin-bottom:2px; }
-#scoreVal { font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1; }
-#bestVal  { font-size:13px; color:#79d2c4; margin-top:4px; letter-spacing:1px; }
+.hud-label { font-family:var(--font-tech); font-size:11px; letter-spacing:3px; color:#6fa8b8; margin-bottom:2px; }
+#scoreVal { font-family:var(--font-tech); font-weight:900; font-size:34px;
+  font-variant-numeric:tabular-nums; line-height:1; }
+#bestVal  { font-family:var(--font-tech); font-size:13px; color:#79d2c4; margin-top:4px; letter-spacing:1px; }
 #coinBox  { text-align:right; }
-#coinVal  { font-size:26px; font-weight:700; color:var(--gold);
+#coinVal  { font-family:var(--font-tech); font-weight:700; font-size:26px; color:var(--gold);
   text-shadow:0 0 14px rgba(255,213,74,.5); font-variant-numeric:tabular-nums; }
 
 #overlay { position:fixed; inset:0; display:flex; flex-direction:column;
@@ -21,7 +24,8 @@ canvas { display:block; }
   backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
   transition:opacity .28s ease; }
 #overlay.hidden { opacity:0; pointer-events:none; }
-#title { font-size:min(11vw,64px); font-weight:800; letter-spacing:10px; text-indent:10px;
+#title { font-family:var(--font-display); font-weight:400;
+  font-size:min(12vw,76px); letter-spacing:5px; text-indent:5px;
   color:#eafffb;
   text-shadow:0 0 18px rgba(41,255,227,.65), 0 0 48px rgba(41,255,227,.3),
               0 0 90px rgba(255,45,120,.25); margin-bottom:14px; text-align:center; }
@@ -31,6 +35,7 @@ canvas { display:block; }
   color:#4d7280; font-size:12px; letter-spacing:2px; z-index:4; pointer-events:none; }
 #boostTag { position:fixed; top:18px; left:50%;
   transform:translateX(-50%) translateY(-8px);
+  font-family:var(--font-tech);
   color:var(--gold); font-size:15px; font-weight:700; letter-spacing:6px;
   text-shadow:0 0 14px rgba(255,213,74,.65); opacity:0;
   transition:opacity .15s ease, transform .15s ease; z-index:6; pointer-events:none; }
@@ -47,7 +52,7 @@ canvas { display:block; }
 }
 #title { animation:titleGlow 2.8s ease-in-out infinite; }
 
-#subtitle { margin:0; color:#3f7d8c;
+#subtitle { margin:0; color:#3f7d8c; font-family:var(--font-tech); font-weight:700;
   font-size:min(2.6vw,14px); letter-spacing:12px; text-indent:12px; }
 
 /* 标题下的霓虹分隔线 */
@@ -59,23 +64,25 @@ canvas { display:block; }
   background:var(--cyan); box-shadow:0 0 10px rgba(41,255,227,.9); }
 
 /* 最高纪录徽章 */
-#bestLine { color:var(--gold); font-size:13px; letter-spacing:2px; line-height:1;
+#bestLine { font-family:var(--font-tech); font-weight:700; color:var(--gold);
+  font-size:13px; letter-spacing:2px; line-height:1;
   margin-bottom:26px; padding:8px 20px; border:1px solid rgba(255,213,74,.32);
   border-radius:999px; background:rgba(255,213,74,.05);
   text-shadow:0 0 10px rgba(255,213,74,.4); font-variant-numeric:tabular-nums; }
 
 /* 按钮：主按钮独占一行加宽突出，次要模式并排 */
-.pill { pointer-events:auto; cursor:pointer; border-radius:999px; font-family:inherit;
-  font-weight:600; transition:all .18s ease; }
+.pill { pointer-events:auto; cursor:pointer; border-radius:999px;
+  font-family:var(--font-display); font-weight:400;
+  font-size:18px; transition:all .18s ease; }
 .pill:focus { outline:none; }
 .pill:focus-visible { outline:2px solid rgba(160,255,240,.7); outline-offset:3px; }
 .btn-stack { display:flex; flex-direction:column; gap:14px;
   width:min(300px,82vw); align-items:stretch; }
 .btn-duo { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
 .btn-duo .pill { flex:1 1 0; min-width:118px; padding:10px 0;
-  font-size:14px; letter-spacing:4px; text-indent:4px; }
+  font-size:16px; letter-spacing:4px; text-indent:4px; }
 
-.pill.primary { width:100%; padding:13px 0; font-size:16px; letter-spacing:6px; text-indent:6px;
+.pill.primary { width:100%; padding:13px 0; font-size:18px; letter-spacing:6px; text-indent:6px;
   color:#dffffa; background:rgba(41,255,227,.07);
   border:1px solid rgba(41,255,227,.8); text-shadow:0 0 10px rgba(41,255,227,.6);
   box-shadow:0 0 24px rgba(41,255,227,.25), inset 0 0 16px rgba(41,255,227,.09); }
@@ -102,7 +109,7 @@ canvas { display:block; }
 kbd { display:inline-block; min-width:24px; padding:3px 8px; margin:0 3px;
   border:1px solid rgba(41,255,227,.4); border-bottom-width:2px; border-radius:6px;
   background:rgba(41,255,227,.06); color:#bff7ee;
-  font-family:inherit; font-size:12px; text-align:center; }
+  font-family:var(--font-tech); font-weight:700; font-size:11px; text-align:center; }
 
 /* 弹出时的逐级入场动画（translate 属性独立于 transform，不影响按钮 hover） */
 @keyframes rise {
@@ -122,7 +129,7 @@ kbd { display:inline-block; min-width:24px; padding:3px 8px; margin:0 3px;
              rise .5s cubic-bezier(.2,.75,.3,1) both .04s; }
 
 @media (max-width:600px) {
-  #title { font-size:min(11vw,48px); letter-spacing:6px; text-indent:6px; }
+  #title { font-size:min(12vw,56px); letter-spacing:4px; text-indent:4px; }
   #subtitle { letter-spacing:8px; text-indent:8px; }
   .divider { margin:18px auto 20px; }
   .btn-stack { gap:12px; }
