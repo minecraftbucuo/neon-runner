@@ -61,8 +61,8 @@ export function createPlayer(scene) {
   let ghostTimer = 0;
 
   function updateGhosts(dt) {
-    // 冲刺中：按车速决定残影生成间隔，越快越密
-    if (G.mode === 'playing' && G.boostingNow) {
+    // 冲刺中：按车速决定残影生成间隔，越快越密（演示局同享）
+    if ((G.mode === 'playing' || G.demo) && G.boostingNow) {
       ghostTimer += dt;
       // 间隔加随机抖动，残影错开，平均亮度更稳
       const interval = Math.max(0.028, 0.06 - G.speed * 0.001) * (0.8 + Math.random() * 0.4);
@@ -103,7 +103,7 @@ export function createPlayer(scene) {
       group.position.x += (tx - group.position.x) * Math.min(1, dt * 10);
 
       let hop;
-      if (G.mode === 'playing') {
+      if (G.mode === 'playing' || G.demo) {
         G.runPhase += dt * (6 + G.speed * 0.35);
         hop = Math.abs(Math.sin(G.runPhase)) * 0.22;
       } else { // ready 慢速待机

@@ -13,6 +13,7 @@ function loadBest(key) {
 export const G = {
   mode: 'ready',        // ready | playing | over
   gameMode: 'normal',   // normal | turbo | auto（auto=自动驾驶：极速+机器人，不记录）
+  demo: false,          // 菜单背景演示局：机器人跑极速，撞毁自动重播（分数不计）
   speed: 6,             // 当前世界速度（ready 界面用慢速漂移）
   elapsed: 0,           // 本局时长
   distance: 0,          // 本局行驶距离

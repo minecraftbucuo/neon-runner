@@ -18,6 +18,7 @@ export function createController(ctx) {
     Object.assign(G, {
       mode: 'playing',
       gameMode: mode,
+      demo: false,          // 真正开局：菜单演示局结束
       speed: mode === 'normal' ? BASE_SPD : TURBO_START_SPD,
       elapsed: 0, distance: 0, coins: 0, score: 0,
       targetLane: 0, runPhase: 0, shake: 0,
@@ -30,11 +31,40 @@ export function createController(ctx) {
     botTarget = 0; // 自动驾驶目标车道复位
     lastGoal = null; // 路线粘性复位
     botLock = null; // 在途转移锁复位
+    demoDeadT = 0;
     player.resetLook();
     hud.setScore(0, 0);
     hud.setBest(mode === 'auto' ? '不记录' : G.best[mode]); // HUD 最佳：自动驾驶不记录
     overlay.hide();
     bus.emit('run:start', { seed: G.seed });
+  }
+
+  /* ---- 菜单背景演示局：机器人自动跑极速模式 ----
+     mode 保持 ready（菜单浮层常驻、点开始照常开局），
+     gameMode 借用 auto 复用极速速度曲线与机器人决策；
+     撞毁后红闪减速片刻即整局重播，分数/金币不计入纪录。 */
+  let demoDeadT = 0;   // 撞毁后的停留倒计时（>0 期间世界急停）
+
+  function startDemo() {
+    Object.assign(G, {
+      mode: 'ready',
+      gameMode: 'auto',
+      demo: true,
+      speed: TURBO_START_SPD,
+      elapsed: 0, distance: 0, coins: 0, score: 0,
+      targetLane: 0, runPhase: 0, shake: 0,
+      distSinceSpawn: 0, nextGap: 18,
+    });
+    G.seed = (Math.random() * 0xffffffff) >>> 0; // 每次重播换一张新图
+    rng = new Rng(G.seed);
+    botTarget = 0;
+    lastGoal = null;
+    botLock = null;
+    demoDeadT = 0;
+    obstacles.recycleAll();
+    coins.recycleAll();
+    fx.clear();
+    player.resetLook();
   }
 
   function primaryAction() {
@@ -299,33 +329,26 @@ export function createController(ctx) {
     return lanes.reduce((a, b) => Math.abs(b - from) < Math.abs(a - from) ? b : a);
   }
 
-  /** 从结算界面返回主菜单（清场、待机漂移） */
+  /** 从结算界面返回主菜单（清场、开启背景演示局） */
   function toMenu() {
     if (!(G.mode === 'over' && G.overlayShown)) return;
-    obstacles.recycleAll();
-    coins.recycleAll();
-    fx.clear();
     Object.assign(G, {
       mode: 'ready',
       gameMode: 'normal',
-      speed: 6,
-      elapsed: 0, distance: 0, coins: 0, score: 0,
-      targetLane: 0, runPhase: 0, shake: 0,
-      distSinceSpawn: 0, nextGap: 18,
       overVy: 0, overTimer: 0, overlayShown: false,
     });
-    player.resetLook();
     hud.setScore(0, 0);
     hud.setBest(G.best.normal);
     overlay.showMenu(G.best.normal, G.best.turbo);
+    startDemo();
   }
 
   function applyMove(dir) {
-    if (G.mode !== 'playing') return;
+    if (G.mode !== 'playing' && !G.demo) return; // 演示局里机器人也走这里换道
     const nl = Math.max(-2, Math.min(2, G.targetLane + dir));
     if (nl === G.targetLane) return; // 已在边缘：不移动也不响
     G.targetLane = nl;
-    bus.emit('lane:moved', { dir });
+    if (!G.demo) bus.emit('lane:moved', { dir }); // 演示局不出换道音效
   }
 
   function crash() {
@@ -362,8 +385,9 @@ export function createController(ctx) {
       else if (cmd.type === 'boost') G.keyBoost = cmd.on;
     }
 
-    // 自动驾驶：机器人每帧决策（传真实帧长，掉帧时模拟自动放慢节奏）
-    if (G.mode === 'playing' && G.gameMode === 'auto') botDrive(dt);
+    // 自动驾驶：机器人每帧决策（传真实帧长，掉帧时模拟自动放慢节奏；
+    // 菜单演示局同样由机器人接管，撞毁停留期不决策）
+    if (G.gameMode === 'auto' && (G.mode === 'playing' || G.demo) && demoDeadT <= 0) botDrive(dt);
 
     const turbo = G.gameMode !== 'normal'; // 极速与自动驾驶共用极速速度曲线
 
@@ -395,6 +419,42 @@ export function createController(ctx) {
 
       hud.setScore(G.score, G.coins);
     }
+    else if (G.demo) {
+      // 菜单背景演示局：与真实自动驾驶同一套物理（速度成长/生成/
+      // 碰撞），但撞毁只红闪急停片刻就整局重播，不出结算、不记录
+      if (demoDeadT > 0) {
+        demoDeadT -= dt;
+        G.speed *= Math.exp(-5 * dt);
+        if (demoDeadT <= 0) startDemo();
+      } else {
+        G.elapsed += dt;
+        const wantSpd = Math.min(TURBO_MAX_SPD, TURBO_START_SPD + G.elapsed * TURBO_ACCEL);
+        G.speed += (wantSpd - G.speed) * Math.min(1, dt * 3.5);
+        G.distance += G.speed * dt;
+        G.score = Math.floor(G.distance) + G.coins * 10;
+
+        G.distSinceSpawn += G.speed * dt;
+        if (G.distSinceSpawn >= G.nextGap) {
+          G.distSinceSpawn = 0;
+          spawnWave();
+        }
+
+        obstacles.update(dt);
+        coins.update(dt, t, player.group.position.x, (mesh) => {
+          G.coins++;
+          fx.popRing(mesh.position.x, mesh.position.y, mesh.position.z);
+          // 演示局吃金币只出特效，不发声不计入纪录
+        });
+
+        if (obstacles.hits(player.group.position.x)) {
+          demoDeadT = 0.7;          // 短暂停留：看清撞毁再重播
+          player.flashDead();
+          G.shake = 0.4;
+        }
+
+        hud.setScore(G.score, G.coins);
+      }
+    }
     else if (G.mode === 'ready') {
       G.speed = 6; // 待机慢速漂移
     }
@@ -418,7 +478,7 @@ export function createController(ctx) {
     // 相机：平滑跟随 + 待机摇摆 + 撞击震动
     const camTargetX = player.group.position.x * 0.5;
     G.camX += (camTargetX - G.camX) * Math.min(1, dt * 6);
-    const sway = (G.mode === 'ready') ? Math.sin(t * 0.6) * 0.7 : 0;
+    const sway = (G.mode === 'ready' && !G.demo) ? Math.sin(t * 0.6) * 0.7 : 0;
     camera.position.set(G.camX + sway, 6.2, 10.5);
     if (G.shake > 0.002) {
       camera.position.x += (Math.random() - 0.5) * G.shake;
@@ -426,11 +486,13 @@ export function createController(ctx) {
       G.shake *= Math.exp(-4.5 * dt);
     }
 
-    // 冲刺视效 + 能量（极速模式：随速度攀升触发拖尾/风声，而非按键）
-    const turboFrac = (turbo && G.mode === 'playing')
+    // 冲刺视效 + 能量（极速模式：随速度攀升触发拖尾/风声，而非按键；
+    // 演示局同享极速视效，让背景有速度感）
+    const inTurboRun = G.mode === 'playing' || G.demo;
+    const turboFrac = (turbo && inTurboRun)
       ? Math.min(1, (G.speed - BASE_SPD) / (TURBO_MAX_SPD - BASE_SPD)) : 0;
     G.boostingNow = turbo
-      ? (G.mode === 'playing' && turboFrac > 0.25)   // 提速到一定程度进入极速视效
+      ? (inTurboRun && turboFrac > 0.25)   // 提速到一定程度进入极速视效
       : (G.mode === 'playing' && G.keyBoost);
     const fovTarget = turbo
       ? FOV_N + (FOV_B - FOV_N) * turboFrac           // 视场角随速度平滑拉宽
@@ -446,6 +508,9 @@ export function createController(ctx) {
 
     camera.lookAt(G.camX, 1.2, -10);
   }
+
+  // 启动即开菜单演示局：背景不再是静止待机，机器人一直在跑
+  startDemo();
 
   return { frameUpdate, primaryAction, startTurbo, startAuto, toMenu };
 }
