@@ -4,7 +4,7 @@
 export let actx = null;
 let master = null, musicBus = null, arpBus = null, noiseBuf = null;
 let windSrc = null, windFilter = null, windGain = null, windLvl = 0;
-let musicOn = true, energy = 0;
+let musicOn = true, energy = 1;  // 常驻满能量：鼓组/贝斯全程保持冲锋状态的亮度
 const BPM = 126, SPB = 60 / BPM;
 let mStep = 0, mNextT = 0, schedTimer = null;
 
@@ -204,8 +204,8 @@ export function beep(freq, dur, type, vol, delay, slideTo) {
   o.start(t); o.stop(t + dur + 0.03);
 }
 
-/** 主循环每帧注入音乐能量 0..1（冲刺时升高） */
-export function setEnergy(v) { energy = v; }
+/** 主循环注入能量已废弃：音乐常驻冲锋状态 */
+export function setEnergy() {}
 
 /** 主循环每帧驱动风声：active=冲刺中 */
 export function updateWind(active, dt, t) {
