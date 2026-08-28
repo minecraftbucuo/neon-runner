@@ -53,11 +53,10 @@ void main(){
   col *= 0.90 + 0.22*n2;                                            // 明暗起伏
   gl_FragColor = vec4(col, uFade);
 }`;
-
 export function createSun(scene) {
   const RADIUS = 26;
-  // 轨道：与赛道平行的固定直线（x/y 锁死），出生在 z=-560 的深空
-  const ORBIT = { x: 80, y: 64, z: -560, vzMul: 0.38 };
+  // 生成深度固定在 z=-560 的同一远处；横向/高度每次随机（见 spawn）
+  const ORBIT = { z: -560, vzMul: 0.38 };
   const DESPAWN_Z = 34;
 
   const group = new THREE.Group();
@@ -74,18 +73,25 @@ export function createSun(scene) {
   const sun = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 64, 40), sunMat);
   group.add(sun);
 
+  // 日冕烟羽：大颗柔烟团贴着球面缓慢外飘，边飘边膨胀、旋转、渐渐消散。
+  // 普通混合（非加色）→ 有真实烟的遮蔽感；年轻时暖金、年老时暗红棕
+
   const glowMats = [sunMat];
 
   // 全屏红光氛围层
   const $fx = document.getElementById('celestialFx');
 
   let active = false;
-  let side = 1;
-  let countdown = 200;      // 距下次太阳出现的行驶距离（首颗尽快登场）
+  let countdown = 120;      // 距下次太阳出现的行驶距离（比原版 200 更快登场）
+  let fxLevel = 0;          // 红光当前浓度（逐帧驱动，渐变无跳变）
+  function applyFx() { $fx.style.opacity = fxLevel.toFixed(3); }
 
   function spawn() {
-    side *= -1;             // 左右交替出现
-    group.position.set(side * ORBIT.x, ORBIT.y, ORBIT.z);
+    // 位置完全随机：横向 -95~95 全区间连续取值（含 0 = 正上方），
+    // 高度 26~80；唯一固定的是生成深度 z=-560
+    const x = (Math.random() * 2 - 1) * 95;
+    const y = 26 + Math.random() * 54;
+    group.position.set(x, y, ORBIT.z);
     group.visible = true;
     active = true;
     setFade(0);
@@ -101,6 +107,11 @@ export function createSun(scene) {
 
   function update(dt, t, speed, inRun) {
     if (!active) {
+      // 太阳离场后：红光带约 2 秒余韵缓缓消退
+      if (fxLevel > 0) {
+        fxLevel = Math.max(0, fxLevel - dt * 0.45);
+        applyFx();
+      }
       if (inRun) {
         countdown -= speed * dt;
         if (countdown <= 0) spawn();
@@ -121,20 +132,19 @@ export function createSun(scene) {
     const fadeOut = Math.min(1, (DESPAWN_Z - z0) / 18);
     setFade(Math.max(0, Math.min(fadeIn, fadeOut)));
 
-    // 近距离威慑：红光涌屏 + 镜头微震
-    const closeK = Math.max(0, 1 - Math.abs(z0 + 34) / 100);
-    if (closeK > 0) {
-      G_shakePulse(closeK * 0.34);
-      $fx.classList.add('on');
-    } else {
-      $fx.classList.remove('on');
-    }
+    // 近距离威慑：红光浓度随距离连续变化 —— 逼近时渐强、
+    // 远离时用两倍宽的区间缓缓回落，平方曲线让远端更淡、近端更浓
+    const d = z0 + 34;
+    const span2 = d < 0 ? 95 : 200;
+    const closeK = Math.max(0, 1 - Math.abs(d) / span2);
+    fxLevel = closeK * closeK;
+    applyFx();
+    if (closeK > 0) G_shakePulse(closeK * 0.34);
 
     if (z0 > DESPAWN_Z) {
       group.visible = false;
-      active = false;
-      $fx.classList.remove('on');
-      countdown = 300 + Math.random() * 200;
+      active = false;            // 红光转由上方余韵逻辑接管渐隐
+      countdown = 180 + Math.random() * 170;   // 比原版 300~500 更快
     }
   }
 

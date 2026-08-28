@@ -52,7 +52,7 @@ function boot() {
   // 各系统
   const world = createWorld(scene);
   const space = createSpace(scene, camera);
-  const sunSystem = createSun(scene);
+  const sunSystem = createSun(scene, camera);
   sunSystem.onShake((k) => { G.shake = Math.max(G.shake, k); });
   const player = createPlayer(scene);
   const obstacles = createObstacles(scene);

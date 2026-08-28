@@ -41,12 +41,11 @@ canvas { display:block; }
   transition:opacity .15s ease, transform .15s ease; z-index:6; pointer-events:none; }
 #boostTag.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* 太阳近距离掠过时：屏幕边缘涌入红光 */
+/* 太阳近距离掠过时：屏幕边缘涌入红光（透明度由 JS 按距离逐帧驱动） */
 #celestialFx { position:fixed; inset:0; pointer-events:none; z-index:3;
-  opacity:0; transition:opacity .35s ease-out;
+  opacity:0;
   background:radial-gradient(ellipse at center, transparent 34%,
     rgba(255,64,16,.55) 100%); }
-#celestialFx.on { opacity:1; }
 
 /* ---------- 菜单 / 结算界面 ---------- */
 .hidden-el { display:none !important; }
