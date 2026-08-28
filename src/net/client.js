@@ -3,7 +3,7 @@
 // 状态与快照数据写入 G.net（state.js），消息经 bus 广播给 UI/幽灵车/控制器。
 import { G } from '../core/state.js';
 import { bus } from '../core/bus.js';
-import { LANES, LANE_W } from '../config.js';
+import { LANE_W } from '../config.js';
 import { T, ST, ERR_TEXT, encode, decode } from './protocol.js';
 
 const POS_INTERVAL = 100;      // pos 上报间隔（ms）
@@ -157,8 +157,8 @@ export function createNetClient() {
   }
 
   function playerX() {
-    // 用 targetLane 对应车道中心近似（对手只做展示，精度足够）
-    return LANES[G.targetLane] * LANE_W;
+    // targetLane 本身就是车道值（-2..2），车道中心 x = 车道值 × 车道宽
+    return G.targetLane * LANE_W;
   }
 
   function posState() {
@@ -172,6 +172,11 @@ export function createNetClient() {
   function onMessage(ev) {
     const m = decode(ev.data);
     if (!m || typeof m.t !== 'string') return;
+    // dev 调试钩子：联调用（生产构建自动剔除）
+    if (import.meta.env.DEV) {
+      (window.__netLog ||= []).push(performance.now().toFixed(0) + ' ' + m.t + ' ' + JSON.stringify(m).slice(0, 140));
+      if (window.__netLog.length > 200) window.__netLog.splice(0, 100);
+    }
 
     switch (m.t) {
       case T.PONG:

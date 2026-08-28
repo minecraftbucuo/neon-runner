@@ -147,10 +147,11 @@ class Room {
 
   // ---------- 对局中消息 ----------
 
-  /** pos 上报：校验增速（§10.1），打 id 转发给其他人 */
+  /** pos 上报：校验增速（§10.1），打 id 转发给其他人。
+      已冲线者继续转发（对手幽灵车需要看到滑行/淡出表现），但 z 封顶在赛道长度。 */
   onPos(id, m) {
     const p = this.players.get(id);
-    if (!p || this.phase !== 'racing' || p.status === 'fin') return;
+    if (!p || this.phase !== 'racing') return;
 
     const now = Date.now();
     if (typeof m.z === 'number' && typeof m.seq === 'number' && m.seq > p.seq) {
@@ -159,13 +160,15 @@ class Room {
       if (m.z > p.z && (m.z - p.z) > MAX_Z_RATE * 2 * dt + 100) {
         return;
       }
-      p.seq = m.seq; p.z = Math.max(p.z, m.z); p.lastZAt = now;
+      p.seq = m.seq;
+      p.z = Math.min(this.len, Math.max(p.z, m.z));   // 单调不减，且不超过终点
+      p.lastZAt = now;
     }
     if (typeof m.lane === 'number') p.lane = m.lane;
     if (typeof m.x === 'number') p.x = m.x;
     if (typeof m.spd === 'number') p.spd = m.spd;
     if (typeof m.score === 'number') p.score = Math.max(p.score, Math.round(m.score));
-    if (m.st === 'run' || m.st === 'stun') p.status = m.st;
+    if (p.status !== 'fin' && (m.st === 'run' || m.st === 'stun')) p.status = m.st;
 
     const fwd = { t: 'pos', id, z: p.z, lane: p.lane, x: p.x, spd: p.spd, score: p.score, st: p.status };
     const s = JSON.stringify(fwd);
@@ -192,7 +195,13 @@ class Room {
     // §10.2：冲线时间不得早于理论最快（len / 最大速度，再打 0.9 折容差；测试可用 MIN_FINISH_MS 覆盖）
     const elapsed = Date.now() - this.startAt;
     const minMs = MIN_FINISH_MS ?? (this.len / (44 * 1.2)) * 1000 * 0.9;
-    if (elapsed < minMs) return;                     // 非法冲线：忽略
+    if (elapsed < minMs) {
+      // 非法冲线：忽略并回执（客户端能感知，而不是无声卡死）
+      if (p.ws.readyState === 1) {
+        p.ws.send(JSON.stringify({ t: 'error', code: 'FINISH_EARLY', msg: '冲线时间异常，已被忽略' }));
+      }
+      return;
+    }
 
     p.status = 'fin';
     const score = typeof m.score === 'number' ? Math.round(m.score) : p.score;

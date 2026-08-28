@@ -178,7 +178,7 @@ export function createOverlay() {
     },
     /** 联机结算榜（服务器 final board） */
     showVersusResult(entries, myId) {
-      hideNet();
+      $netPanel.classList.add('hidden-el');
       $title.textContent = '冲线结算';
       $sub.classList.add('hidden-el');
       $best.classList.add('hidden-el');

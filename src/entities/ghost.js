@@ -38,6 +38,7 @@ export function createGhosts(scene, net) {
       const mat = new THREE.MeshStandardMaterial({
         color: 0x141428, emissive: color, emissiveIntensity: 0.8,
         metalness: 0.35, roughness: 0.35, transparent: true, opacity: 0.55,
+        fog: false,   // 不受雾衰减：远处也能看到对手
       });
       const edgeMat = new THREE.LineBasicMaterial({
         color: 0xffffff, transparent: true, opacity: 0.45,

@@ -71,6 +71,43 @@ export function createWorld(scene) {
   rail(-6.1, 0x29ffe3); rail(6.1, 0x29ffe3);
   rail(-8.3, 0x7e1c46); rail(8.3, 0x7e1c46);
 
+  /* ---- versus 终点拱门：冲线标记 ----
+     与障碍同一 z 映射（屏幕 z = G.distance - 赛道位置），
+     拱门赛道位置 = G.trackLen，材质关雾：远处可见。 */
+  const finishGate = (() => {
+    const group = new THREE.Group();
+    const neon = (c) => new THREE.MeshBasicMaterial({ color: c, fog: false });
+    // 两根霓虹立柱
+    const pillarGeo = new THREE.BoxGeometry(0.42, 5.4, 0.42);
+    const pL = new THREE.Mesh(pillarGeo, neon(0x29ffe3));
+    const pR = new THREE.Mesh(pillarGeo, neon(0x29ffe3));
+    pL.position.set(-6.35, 2.7, 0);
+    pR.position.set(6.35, 2.7, 0);
+    // 金色横梁
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(13.7, 0.55, 0.55), neon(0xffd24a));
+    beam.position.set(0, 5.4, 0);
+    // 地面黑白格终点线
+    const c = document.createElement('canvas');
+    c.width = 128; c.height = 32;
+    const ctx = c.getContext('2d');
+    for (let y = 0; y < 2; y++) {
+      for (let x = 0; x < 8; x++) {
+        ctx.fillStyle = (x + y) % 2 ? '#10162e' : '#dff4ff';
+        ctx.fillRect(x * 16, y * 16, 16, 16);
+      }
+    }
+    const line = new THREE.Mesh(
+      new THREE.PlaneGeometry(12.4, 1.8),
+      new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), fog: false })
+    );
+    line.rotation.x = -Math.PI / 2;
+    line.position.set(0, 0.02, 0);
+    group.add(pL, pR, beam, line);
+    group.visible = false;
+    scene.add(group);
+    return group;
+  })();
+
   /* ---- 滚动粒子：圆形光斑 + 冲刺光条 ---- */
   const dotTex = dotTexture();
 
@@ -139,6 +176,14 @@ export function createWorld(scene) {
 
   function updateScroll(dz, t) {
     crossLines.position.z = (crossLines.position.z + dz) % CROSS_STEP;
+
+    // versus 终点拱门：按赛道进度贴到正确深度（非 versus 局隐藏）
+    if (G.gameMode === 'versus' && G.trackLen > 0) {
+      finishGate.visible = true;
+      finishGate.position.z = G.distance - G.trackLen;
+    } else {
+      finishGate.visible = false;
+    }
 
     const speed = Math.max(G.speed, 0.01);
     const dt = dz / speed;

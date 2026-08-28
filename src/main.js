@@ -24,8 +24,12 @@ import { createNetClient } from './net/client.js';
 import { createGhosts } from './entities/ghost.js';
 
 function boot() {
+  // dev 调试钩子：联调用（生产构建自动剔除）
+  const dev = import.meta.env.DEV;
+  if (dev) window.G = G;
   const hud = createHud();
   const overlay = createOverlay();
+  if (dev) window.__hooks = { hud, overlay };
 
   let renderer;
   try {

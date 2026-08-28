@@ -38,6 +38,7 @@ export const ERR_TEXT = {
   NO_ROOM: '房间不存在，检查房间码',
   IN_GAME: '对局进行中，稍后再试',
   NAME: '名字需 1~12 个字符',
+  FINISH_EARLY: '冲线时间异常，已被服务器忽略',
 };
 
 export const encode = JSON.stringify;
