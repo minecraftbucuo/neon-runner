@@ -143,6 +143,86 @@ kbd { display:inline-block; min-width:24px; padding:3px 8px; margin:0 3px;
   .pill.primary { font-size:15px; letter-spacing:4px; text-indent:4px; }
   #keysRow { gap:6px 16px; margin-top:24px; font-size:12px; }
 }
+
+/* ---------- 联机竞速 ---------- */
+.pill.magenta { color:#ff9ff3; border:1px solid rgba(255,95,158,.55);
+  background:rgba(255,95,158,.06); text-shadow:0 0 10px rgba(255,95,158,.4);
+  box-shadow:inset 0 0 12px rgba(255,95,158,.05); }
+.pill.magenta:hover { transform:translateY(-1px);
+  box-shadow:0 0 22px rgba(255,95,158,.35), inset 0 0 16px rgba(255,95,158,.1); }
+
+/* 顶部赛道进度条（全员标记点） */
+#raceTrack { position:fixed; top:64px; left:50%; translate:-50% 0;
+  width:min(560px,86vw); height:26px; z-index:6; pointer-events:none; }
+#raceTrackBar { position:absolute; top:12px; left:0; right:26px; height:4px;
+  border-radius:4px; background:rgba(255,255,255,.14);
+  box-shadow:0 0 10px rgba(41,255,227,.18); }
+#raceFlag { position:absolute; top:1px; right:0; font-family:var(--font-display);
+  font-size:15px; color:#ffd24a; text-shadow:0 0 12px rgba(255,213,74,.6); }
+.raceMarker { position:absolute; top:6px; width:16px; height:16px; border-radius:50%;
+  translate:-50% 0; border:2px solid rgba(255,255,255,.75);
+  font:700 9px/12px var(--font-tech); text-align:center; color:#05060f;
+  transition:left .18s linear; }
+.raceMarker.me { width:20px; height:20px; z-index:2;
+  border-color:#fff; box-shadow:0 0 14px rgba(41,255,227,.8); }
+.raceMarker.fin { opacity:.55; }
+
+/* 居中倒计时 / 冲线提示 */
+#countdown { position:fixed; top:32%; left:0; right:0; text-align:center;
+  font-family:var(--font-display); font-size:min(18vw,120px); color:#eafffb;
+  text-shadow:0 0 24px rgba(41,255,227,.7), 0 0 70px rgba(41,255,227,.35);
+  z-index:8; pointer-events:none; }
+#countdown.small { font-size:min(6vw,34px); letter-spacing:4px; }
+
+/* 联机面板（入口 + 房间） */
+#netPanel { position:fixed; inset:0; display:flex; justify-content:center;
+  align-items:center; z-index:11;
+  background:radial-gradient(ellipse at center, rgba(5,8,20,.42) 0%, rgba(3,4,12,.86) 100%);
+  backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+#netEntry, #netRoom { display:flex; flex-direction:column; gap:14px;
+  width:min(320px,86vw); align-items:stretch; }
+#netTitle { font-family:var(--font-display); font-size:44px; letter-spacing:6px;
+  text-indent:6px; color:#eafffb; text-align:center;
+  text-shadow:0 0 18px rgba(255,95,158,.6); margin-bottom:2px; }
+#netDesc { color:#9fd8cd; font-size:13px; letter-spacing:1px; text-align:center;
+  line-height:1.7; margin-bottom:6px; }
+#netPanel input { pointer-events:auto; border-radius:999px; padding:12px 20px;
+  border:1px solid rgba(41,255,227,.5); background:rgba(41,255,227,.06);
+  color:#dffcf6; font-family:var(--font-display); font-size:17px; letter-spacing:2px;
+  text-align:center; outline:none; }
+#netPanel input:focus { border-color:rgba(41,255,227,.9);
+  box-shadow:0 0 20px rgba(41,255,227,.25); }
+#netPanel input::placeholder { color:#5d8a92; }
+.join-row { display:flex; gap:10px; }
+.join-row input { flex:1; text-transform:uppercase; }
+.join-row .pill { flex:0 0 auto; padding:10px 18px; font-size:15px; }
+#netRoomLabel { color:#6fa8b8; font-size:12px; letter-spacing:4px; text-align:center;
+  font-family:var(--font-tech); }
+#netRoomCodeBig { font-family:var(--font-tech); font-weight:900; font-size:56px;
+  letter-spacing:14px; text-indent:14px; color:#ffd24a; text-align:center;
+  text-shadow:0 0 22px rgba(255,213,74,.5); line-height:1; margin-bottom:4px; }
+#netPlayerList { display:flex; flex-direction:column; gap:8px; margin:4px 0 6px;
+  max-height:34vh; overflow-y:auto; }
+.netPlayer { display:flex; justify-content:space-between; align-items:center;
+  padding:9px 18px; border-radius:12px; border:1px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.04); color:#cfeee7; font-size:15px;
+  letter-spacing:1px; }
+.netPlayer .rdy { font-size:12px; color:#79d2c4; letter-spacing:2px; }
+.netPlayer .rdy.on { color:#7dff8a; text-shadow:0 0 10px rgba(125,255,138,.6); }
+.netPlayer.fin { color:#ffd24a; }
+#netStatus, #netRoomStatus { color:#ff9ec0; font-size:13px; letter-spacing:1px;
+  text-align:center; min-height:18px; }
+#netRoomStatus { color:#79d2c4; }
+
+/* 联机结算榜（复用 #msg） */
+#msg .vsRow { display:flex; justify-content:space-between; gap:18px;
+  padding:6px 14px; margin:4px 0; border-radius:10px;
+  background:rgba(255,255,255,.05); font-size:15px; letter-spacing:1px; }
+#msg .vsRow.me { border:1px solid rgba(255,213,74,.55);
+  background:rgba(255,213,74,.07); }
+#msg .vsRow .rk { font-family:var(--font-tech); color:#79d2c4; width:2.2em; text-align:left; }
+#msg .vsRow.me .rk { color:#ffd24a; }
+#msg .vsRow .sc { font-family:var(--font-tech); color:#dffcf6; }
 @media (max-height:640px) {
   #title { font-size:min(9vw,44px); margin-bottom:8px; }
   .divider { margin:14px auto 16px; }

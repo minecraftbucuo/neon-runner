@@ -12,7 +12,7 @@ function loadBest(key) {
 
 export const G = {
   mode: 'ready',        // ready | playing | over
-  gameMode: 'normal',   // normal | turbo | auto（auto=自动驾驶：极速+机器人，不记录）
+  gameMode: 'normal',   // normal | turbo | auto | versus（联机竞速：撞墙眩晕重生+有限赛道冲线）
   demo: false,          // 菜单背景演示局：机器人跑极速，撞毁自动重播（分数不计）
   paused: false,        // 对局暂停（ESC）：世界冻结，浮层给继续/回菜单
   speed: 6,             // 当前世界速度（ready 界面用慢速漂移）
@@ -39,6 +39,23 @@ export const G = {
   musicEnergy: 0,       // 音乐能量 0..1（驱动鼓组亮度等）
 
   seed: 0,              // 本局随机种子（联机时由服务器下发）
+
+  // ---------- versus（联机竞速）专属 ----------
+  trackLen: 0,          // 赛道总长（有限赛道；0=无限）
+  stunUntil: 0,         // 眩晕截止（performance.now() 域；0=不在眩晕）
+  invincibleUntil: 0,   // 重生无敌截止（performance.now() 域）
+  netFinished: false,   // 本局已冲线（观众态）
+
+  // ---------- 联机（net 层数据，单机时全为初始值） ----------
+  net: {
+    status: 'offline',        // offline | connecting | lobby | racing | result | error
+    roomId: null,
+    myId: null,
+    roster: [],               // [{id,name,ready,prog,score,status}]
+    ghosts: null,             // Map<id, {snapshots[]}>（client.js 维护）
+    rtt: 0,
+    errMsg: null,
+  },
 };
 
 export function saveBest(gameMode) {

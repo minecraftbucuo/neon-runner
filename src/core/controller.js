@@ -10,8 +10,11 @@ export function createController(ctx) {
   const { camera, world, player, obstacles, coins, fx, hud, overlay, sunSystem } = ctx;
 
   let rng = null; // 本局种子随机源（赛道可复现）
+  let versusStart = null;   // 联机倒计时待开局：{seed, len, at}（performance.now 域的本地开跑时刻）
+  let wasStunned = false;   // 上一帧是否眩晕（检测眩晕→重生的跳变）
+  let wasInvincible = false; // 上一帧是否无敌（结束时恢复车漆）
 
-  function resetRun(mode = 'normal') {
+  function resetRun(mode = 'normal', opts = {}) {
     obstacles.recycleAll();
     coins.recycleAll();
     fx.clear();
@@ -20,24 +23,97 @@ export function createController(ctx) {
       gameMode: mode,
       demo: false,          // 真正开局：菜单演示局结束
       paused: false,        // 新局不继承暂停状态
-      speed: mode === 'normal' ? BASE_SPD : TURBO_START_SPD,
+      speed: (mode === 'normal' || mode === 'versus') ? BASE_SPD : TURBO_START_SPD,
       elapsed: 0, distance: 0, coins: 0, score: 0,
       targetLane: 0, runPhase: 0, shake: 0,
       distSinceSpawn: 0, nextGap: 18,
       overVy: 0, overTimer: 0, overlayShown: false,
+      // versus 专属（单机模式清零回默认）
+      trackLen: mode === 'versus' ? (opts.len || 2500) : 0,
+      stunUntil: 0, invincibleUntil: 0, netFinished: false,
     });
-    // 本局种子；联机时改为接收服务器下发的 seed 即可
-    G.seed = (Math.random() * 0xffffffff) >>> 0;
+    // 本局种子；versus 用服务器下发的 seed（同房间同赛道）
+    G.seed = opts.seed !== undefined ? opts.seed : (Math.random() * 0xffffffff) >>> 0;
     rng = new Rng(G.seed);
     botTarget = 0; // 自动驾驶目标车道复位
     lastGoal = null; // 路线粘性复位
     botLock = null; // 在途转移锁复位
     demoDeadT = 0;
+    wasStunned = false;
+    wasInvincible = false;
     player.resetLook();
     hud.setScore(0, 0);
-    hud.setBest(mode === 'auto' ? '不记录' : G.best[mode]); // HUD 最佳：自动驾驶不记录
+    // HUD 最佳：自动驾驶/联机不记录（联机名次看结算榜）
+    hud.setBest((mode === 'auto' || mode === 'versus') ? '不记录' : G.best[mode]);
     overlay.hide();
     bus.emit('run:start', { seed: G.seed });
+  }
+
+  /** 联机：收到服务器 start 后进入倒计时待命（世界清场静止，到点自动开跑） */
+  function startVersus(seed, len, localStartAt) {
+    versusStart = { seed, len, at: localStartAt };
+    G.demo = false;
+    Object.assign(G, {
+      mode: 'ready', gameMode: 'versus', paused: false,
+      speed: 0, elapsed: 0, distance: 0, coins: 0, score: 0,
+      targetLane: 0, runPhase: 0, shake: 0,
+      distSinceSpawn: 0, nextGap: 18,
+      trackLen: len, stunUntil: 0, invincibleUntil: 0, netFinished: false,
+      overVy: 0, overTimer: 0, overlayShown: false,
+    });
+    obstacles.recycleAll();
+    coins.recycleAll();
+    fx.clear();
+    player.resetLook();
+    overlay.hide();
+  }
+
+  /** versus 撞墙：眩晕 1 秒（全场时间静止），到点重生（安全道 + 短无敌） */
+  function versusCrash(now) {
+    G.stunUntil = now + 1000;
+    G.shake = 0.7;
+    G.keyBoost = false;
+    player.flashDead();
+    bus.emit('run:crash', { score: G.score, versus: true }); // 只为音效，不计纪录
+    bus.emit('versus:crash', { z: Math.floor(G.distance), lane: G.targetLane }); // net 上报
+  }
+
+  /** 眩晕结束的重生：扫安全道落位 + 0.6s 无敌（防重生即再撞，§7.4） */
+  function versusRespawn(now) {
+    player.mat.emissive.setHex(0x17e9c5);
+    player.mat.emissiveIntensity = 0.9;
+    // 危险道 = 碰撞区内 + 前方约 1.2 秒行程内有障碍的车道
+    //（眩晕期间全场冻结，快照位置稳定，无竞态）
+    const travel = Math.max(G.speed, BASE_SPD) * 1.2 + 4;
+    const obs = obstacles.snapshot();
+    const danger = new Set();
+    for (const o of obs) if (o.z > -travel) danger.add(o.lane);
+    const cur = G.targetLane;
+    let lane;
+    const safe = LANES.filter(l => !danger.has(l));
+    if (safe.length) {
+      // 有安全道：取离当前道最近的（少绕路）
+      lane = safe.reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
+    } else {
+      // 全堵（罕见）：选"最近障碍离得最远"的道，无敌兜底穿过
+      let best = LANES[0], bestNear = Infinity;
+      for (const l of LANES) {
+        const near = obs.filter(o => o.lane === l)
+          .reduce((m, o) => Math.max(m, o.z), -Infinity);
+        if (near < bestNear) { bestNear = near; best = l; }
+      }
+      lane = best;
+    }
+    G.targetLane = lane;
+    G.invincibleUntil = now + 600;
+  }
+
+  /** 联机结算：本局终止为观众/结算态（不翻飞、不弹单机结算） */
+  function versusOver() {
+    if (G.gameMode !== 'versus') return;
+    G.mode = 'over';
+    G.overlayShown = true;   // 拦住单机 showOver
+    G.stunUntil = 0;
   }
 
   /* ---- 菜单背景演示局：机器人自动跑极速模式 ----
@@ -70,8 +146,10 @@ export function createController(ctx) {
 
   function primaryAction() {
     if (G.paused) resume();
-    else if (G.mode === 'ready') resetRun('normal');
-    else if (G.mode === 'over' && G.overlayShown) resetRun(G.gameMode); // 结算重开沿用本局模式
+    else if (G.mode === 'ready' && !versusStart) resetRun('normal');   // 联机倒计时中不抢跑
+    else if (G.mode === 'over' && G.overlayShown && G.gameMode !== 'versus') {
+      resetRun(G.gameMode); // 结算重开沿用本局模式（versus 由「再来一局」走服务器）
+    }
   }
 
   /* ---- 对局暂停（ESC）----
@@ -349,13 +427,15 @@ export function createController(ctx) {
     return lanes.reduce((a, b) => Math.abs(b - from) < Math.abs(a - from) ? b : a);
   }
 
-  /** 从结算/暂停界面返回主菜单（清场、开启背景演示局） */
-  function toMenu() {
-    if (!((G.mode === 'over' && G.overlayShown) || G.paused)) return;
+  /** 从结算/暂停界面返回主菜单（清场、开启背景演示局）；force 供联机面板退出用 */
+  function toMenu(force = false) {
+    if (!force && !((G.mode === 'over' && G.overlayShown) || G.paused)) return;
     G.paused = false;
+    versusStart = null;   // 联机半途退出：作废待开局倒计时
     Object.assign(G, {
       mode: 'ready',
       gameMode: 'normal',
+      trackLen: 0, stunUntil: 0, invincibleUntil: 0, netFinished: false,
       overVy: 0, overTimer: 0, overlayShown: false,
     });
     hud.setScore(0, 0);
@@ -366,6 +446,8 @@ export function createController(ctx) {
 
   function applyMove(dir) {
     if (G.mode !== 'playing' && !G.demo) return; // 演示局里机器人也走这里换道
+    // versus 眩晕中输入无效（冻结期不许挪车）
+    if (G.gameMode === 'versus' && performance.now() < G.stunUntil) return;
     const nl = Math.max(-2, Math.min(2, G.targetLane + dir));
     if (nl === G.targetLane) return; // 已在边缘：不移动也不响
     G.targetLane = nl;
@@ -377,7 +459,8 @@ export function createController(ctx) {
     G.overVy = 7.5;
     G.shake = 0.7;
     player.flashDead();
-    if (G.gameMode !== 'auto' && G.score > G.best[G.gameMode]) { // 自动驾驶不记录
+    // 自动驾驶/联机不记录（联机撞墙走 versusCrash，不会到这里，双保险）
+    if (G.gameMode !== 'auto' && G.gameMode !== 'versus' && G.score > G.best[G.gameMode]) {
       G.best[G.gameMode] = G.score;
       saveBest(G.gameMode);
       hud.setBest(G.best[G.gameMode]);
@@ -409,27 +492,68 @@ export function createController(ctx) {
     // 暂停：世界完全冻结（不清指令队列，ESC 恢复后松键状态正确）
     if (G.paused) return;
 
+    // versus 倒计时到点 → 用服务器 seed 正式开局
+    if (versusStart && performance.now() >= versusStart.at) {
+      const vs = versusStart;
+      versusStart = null;
+      resetRun('versus', { seed: vs.seed, len: vs.len });
+    }
+
     // 自动驾驶：机器人每帧决策（传真实帧长，掉帧时模拟自动放慢节奏；
     // 菜单演示局同样由机器人接管，撞毁停留期不决策）
     if (G.gameMode === 'auto' && (G.mode === 'playing' || G.demo) && demoDeadT <= 0) botDrive(dt);
 
-    const turbo = G.gameMode !== 'normal'; // 极速与自动驾驶共用极速速度曲线
+    // 极速与自动驾驶共用极速速度曲线；versus 用普通曲线（可冲刺）
+    const turbo = G.gameMode === 'turbo' || G.gameMode === 'auto';
 
     if (G.mode === 'playing') {
-      G.elapsed += dt;
-      // 极速模式：起步即高速，之后全程自动成长，冲刺键无效
-      const wantSpd = turbo
-        ? Math.min(TURBO_MAX_SPD, TURBO_START_SPD + G.elapsed * TURBO_ACCEL)
-        : Math.min(MAX_SPD, BASE_SPD + G.elapsed * 0.5) + (G.keyBoost ? BOOST_SPD : 0);
-      G.speed += (wantSpd - G.speed) * Math.min(1, dt * 3.5);
-      G.distance += G.speed * dt;
-      G.score = Math.floor(G.distance) + G.coins * 10;
+      const now = performance.now();
+      const stunned = G.gameMode === 'versus' && now < G.stunUntil;
+      const invincible = G.gameMode === 'versus' && now < G.invincibleUntil;
 
-      // 按行驶距离调度生成
-      G.distSinceSpawn += G.speed * dt;
-      if (G.distSinceSpawn >= G.nextGap) {
-        G.distSinceSpawn = 0;
-        spawnWave();
+      // 眩晕→重生、无敌→恢复 的跳变检测
+      if (G.gameMode === 'versus') {
+        if (wasStunned && !stunned) versusRespawn(now);
+        if (wasInvincible && !invincible && !stunned) {
+          player.mat.emissive.setHex(0x17e9c5);
+          player.mat.emissiveIntensity = 0.9;
+        }
+      }
+      wasStunned = stunned;
+      wasInvincible = invincible;
+
+      if (G.netFinished) {
+        // 冲线后观众态：滑行减速，不再计分/生成/判撞
+        G.speed *= Math.exp(-2.5 * dt);
+      } else if (stunned) {
+        // 眩晕：时间静止——elapsed/distance/生成全部冻结，
+        // 速度急停（障碍因速度归零自然冻结），撞墙的墙留在原地，
+        // 重生时由安全道扫描避开它
+        G.speed *= Math.exp(-14 * dt);
+        G.shake = Math.max(G.shake, 0.22);
+        player.mat.emissiveIntensity = 1.2 + 0.5 * Math.abs(Math.sin(now / 70)); // 红闪
+      } else {
+        G.elapsed += dt;
+        // 极速模式：起步即高速，之后全程自动成长，冲刺键无效
+        const wantSpd = turbo
+          ? Math.min(TURBO_MAX_SPD, TURBO_START_SPD + G.elapsed * TURBO_ACCEL)
+          : Math.min(MAX_SPD, BASE_SPD + G.elapsed * 0.5) + (G.keyBoost ? BOOST_SPD : 0);
+        G.speed += (wantSpd - G.speed) * Math.min(1, dt * 3.5);
+        G.distance += G.speed * dt;
+        G.score = Math.floor(G.distance) + G.coins * 10;
+
+        // 按行驶距离调度生成
+        G.distSinceSpawn += G.speed * dt;
+        if (G.distSinceSpawn >= G.nextGap) {
+          G.distSinceSpawn = 0;
+          spawnWave();
+        }
+
+        // 无敌闪烁：金色调制（眩晕红闪在上面的分支处理）
+        if (invincible) {
+          player.mat.emissive.setHex(0xffd24a);
+          player.mat.emissiveIntensity = 0.6 + 0.6 * Math.abs(Math.sin(now / 60));
+        }
       }
 
       obstacles.update(dt);
@@ -439,7 +563,19 @@ export function createController(ctx) {
         bus.emit('coin:picked', { score: G.score });
       });
 
-      if (obstacles.hits(player.group.position.x)) crash();
+      // versus 终点：冲线 → 观众态 + 上报
+      if (G.gameMode === 'versus' && !G.netFinished && G.distance >= G.trackLen) {
+        G.netFinished = true;
+        player.mat.emissive.setHex(0x17e9c5);
+        player.mat.emissiveIntensity = 0.9;
+        bus.emit('versus:finish', { score: Math.floor(G.score) });
+      }
+
+      // 碰撞：versus 走眩晕分支（无敌/眩晕/观众态跳过）
+      if (G.gameMode === 'versus') {
+        if (!G.netFinished && !stunned && !invincible
+            && obstacles.hits(player.group.position.x)) versusCrash(now);
+      } else if (obstacles.hits(player.group.position.x)) crash();
 
       hud.setScore(G.score, G.coins);
     }
@@ -482,15 +618,20 @@ export function createController(ctx) {
     else if (G.mode === 'ready') {
       G.speed = 6; // 待机慢速漂移
     }
-    else { // over：世界急停，玩家翻飞
+    else { // over：世界急停；versus 是冲线滑行（不翻飞，等服务器结算）
       G.speed *= Math.exp(-5 * dt);
-      G.overTimer += dt;
-      G.overVy -= 22 * dt;
-      player.group.position.y = Math.max(-2, player.group.position.y + G.overVy * dt);
-      player.group.rotation.x -= dt * 9;
-      if (G.overTimer > 0.55 && !G.overlayShown) {
-        G.overlayShown = true;
-        overlay.showOver(G.score, G.coins, G.best[G.gameMode], G.gameMode);
+      if (G.gameMode === 'versus') {
+        // 观众滑行：不翻飞不弹单机结算（结算榜由 net:board final 驱动）
+        G.overTimer += dt;
+      } else {
+        G.overTimer += dt;
+        G.overVy -= 22 * dt;
+        player.group.position.y = Math.max(-2, player.group.position.y + G.overVy * dt);
+        player.group.rotation.x -= dt * 9;
+        if (G.overTimer > 0.55 && !G.overlayShown) {
+          G.overlayShown = true;
+          overlay.showOver(G.score, G.coins, G.best[G.gameMode], G.gameMode);
+        }
       }
     }
 
@@ -537,5 +678,5 @@ export function createController(ctx) {
   // 启动即开菜单演示局：背景不再是静止待机，机器人一直在跑
   startDemo();
 
-  return { frameUpdate, primaryAction, startTurbo, startAuto, toMenu, togglePause };
+  return { frameUpdate, primaryAction, startTurbo, startAuto, toMenu, togglePause, startVersus, versusOver };
 }

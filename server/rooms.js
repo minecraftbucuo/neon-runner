@@ -12,7 +12,9 @@ const BOARD_INTERVAL_MS = 2000;        // 兜底 board 广播间隔
 const MAX_Z_RATE = 44 * 1.2;
 // 测试可覆盖（冒烟测试不能真等 42 秒）：START_DELAY_MS 开局倒计时、MIN_FINISH_MS 冲线最短用时
 const START_DELAY_MS = Number(process.env.START_DELAY_MS || 3500);
-const MIN_FINISH_MS = Number(process.env.MIN_FINISH_MS || 0);
+// null = 未覆盖（用理论公式）；显式设 0 也可禁用（0 || 公式 的写法会让 0 失效）
+const MIN_FINISH_MS = process.env.MIN_FINISH_MS !== undefined
+  ? Number(process.env.MIN_FINISH_MS) : null;
 
 /** @type {Map<string, Room>} roomCode → Room */
 const rooms = new Map();
@@ -189,7 +191,7 @@ class Room {
 
     // §10.2：冲线时间不得早于理论最快（len / 最大速度，再打 0.9 折容差；测试可用 MIN_FINISH_MS 覆盖）
     const elapsed = Date.now() - this.startAt;
-    const minMs = MIN_FINISH_MS || (this.len / (44 * 1.2)) * 1000 * 0.9;
+    const minMs = MIN_FINISH_MS ?? (this.len / (44 * 1.2)) * 1000 * 0.9;
     if (elapsed < minMs) return;                     // 非法冲线：忽略
 
     p.status = 'fin';

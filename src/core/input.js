@@ -20,6 +20,8 @@ function push(cmd) {
 
 export function setupInput(canvas) {
   window.addEventListener('keydown', (ev) => {
+    // 联机面板取名/房间码输入中：按键归输入框，不触发游戏指令
+    if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA')) return;
     switch (ev.key) {
       case 'ArrowLeft': case 'a': case 'A':
         push({ type: 'move', dir: -1 }); ev.preventDefault(); break;

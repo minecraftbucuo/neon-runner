@@ -23,6 +23,14 @@
 <div id="boostTag">»» 加速中 ««</div>
 <div id="celestialFx"></div>
 
+<!-- 联机：顶部赛道进度条 + 居中倒计时 -->
+<div id="raceTrack" class="hidden-el">
+  <div id="raceTrackBar"></div>
+  <div id="raceMarkers"></div>
+  <div id="raceFlag">终</div>
+</div>
+<div id="countdown"></div>
+
 <div id="overlay">
   <div id="title">霓虹疾驰</div>
   <div id="subtitle">N E O N · D A S H</div>
@@ -34,6 +42,7 @@
     <div class="btn-duo">
       <button id="turboBtn" class="pill gold">极速模式</button>
       <button id="autoBtn" class="pill violet">自动驾驶</button>
+      <button id="versusBtn" class="pill magenta">联机竞速</button>
       <button id="menuBtn" class="pill pink hidden-el">返回菜单</button>
     </div>
   </div>
@@ -41,6 +50,30 @@
     <span><kbd>←</kbd><kbd>→</kbd> 换道</span>
     <span><kbd>W</kbd> 冲刺</span>
     <span><kbd>空格</kbd> 开始 / 重开</span>
+  </div>
+</div>
+
+<!-- 联机面板：入口（取名/建房/进房）与房间（名单/准备） -->
+<div id="netPanel" class="hidden-el">
+  <div id="netEntry">
+    <div id="netTitle">联机竞速</div>
+    <div id="netDesc">和好友同一条赛道冲线决胜 · 撞墙眩晕 1 秒 · 同冲线比分高者胜</div>
+    <input id="netName" maxlength="12" placeholder="你的名字" autocomplete="off">
+    <button id="netCreateBtn" class="pill primary">创建房间</button>
+    <div class="join-row">
+      <input id="netRoomCode" maxlength="4" placeholder="房间码" autocomplete="off">
+      <button id="netJoinBtn" class="pill gold">加入房间</button>
+    </div>
+    <button id="netBackBtn" class="pill pink">返回菜单</button>
+    <div id="netStatus"></div>
+  </div>
+  <div id="netRoom" class="hidden-el">
+    <div id="netRoomLabel">房间码</div>
+    <div id="netRoomCodeBig"></div>
+    <div id="netPlayerList"></div>
+    <button id="netReadyBtn" class="pill primary">准备</button>
+    <button id="netLeaveBtn" class="pill pink">退出房间</button>
+    <div id="netRoomStatus"></div>
   </div>
 </div>
 <div id="hint">按住 W 冲刺 · 空格 开始 / 重开 · Esc 返回菜单（结算时） · 手机左右滑动 · M 音乐开关 · 极速模式中 W 无效 · 自动驾驶为观赏模式不记录</div>
