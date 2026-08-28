@@ -104,22 +104,64 @@ function arp(freq, t) {
   o.start(t); o.stop(t + 0.16);
 }
 
-/* --- 音序器：Am → F → C → G，四小节无限循环 --- */
-const PROG = [
-  { root: 110.00, triad: [220.00, 261.63, 329.63] },
-  { root:  87.31, triad: [174.61, 220.00, 261.63] },
-  { root: 130.81, triad: [261.63, 329.63, 392.00] },
-  { root:  98.00, triad: [196.00, 246.94, 293.66] },
+/* --- 和弦库（root 为贝斯根音，triad 为琶音用三和弦，单位 Hz，沿用原版音区） --- */
+const Am = { root: 110.00, triad: [220.00, 261.63, 329.63] };
+const F  = { root:  87.31, triad: [174.61, 220.00, 261.63] };
+const C  = { root: 130.81, triad: [261.63, 329.63, 392.00] };
+const G  = { root:  98.00, triad: [196.00, 246.94, 293.66] };
+const Dm = { root:  73.42, triad: [146.83, 174.61, 220.00] };
+const E  = { root:  82.41, triad: [164.81, 207.65, 246.94] };
+
+/* --- 段落：段1=原版 8 小节原样，段2/3/4=新创作的 4 小节短段 --- */
+const SEC_CHART = [
+  [Am, F, C, G,   Am, F, C, G],   // 段1：原版进行原样（8 小节）
+  [F,  G, Am, E],                 // 段2：下属起步推向属和弦（4 小节）
+  [Dm, Am, F,  E],                // 段3：Dm 桥段（4 小节）
+  [Am, F, C,  G],                 // 段4：原版进行短收（4 小节）
 ];
+const SEC_LEN = [8, 4, 4, 4];     // 各段小节数
+
+/* --- 段落播放顺序：1 → 2 → 1 → 3 → 4 → 循环（共 24 小节约 46 秒） --- */
+const SEC_ORDER = [0, 1, 0, 2, 3];
+
+/* --- 各段琶音调子：索引 0-5 = [根,三,五, 根⁸,三⁸,五⁸]（全部在原琶音音区及以上） --- */
+const SEC_PAT = [
+  null,                                        // 段1：原版指法
+  [[4,3,2,3, 4,3,2,0, 2,3,4,5, 4,3,2,3],      // 段2 调子A（高音起步）
+   [5,4,3,4, 5,4,3,2, 3,4,5,5, 4,3,4,5]],     // 段2 调子B（顶层回旋）
+  [[3,4,5,4, 3,4,5,4, 5,4,3,4, 5,4,3,4],      // 段3 调子A（八度跳动）
+   [2,3,4,3, 2,3,4,3, 4,3,2,3, 4,5,4,3]],     // 段3 调子B（明快交替）
+  [[0,2,4,5, 4,2,0,2, 4,5,4,2, 0,2,4,5],      // 段4 调子A（跨八度爬升）
+   [4,4,3,2, 4,5,4,3, 5,5,4,3, 4,3,2,3]],     // 段4 调子B（高音回环）
+];
+
+/* --- 音序器：鼓/贝斯与原版逐字相同；琶音同一件琴，按 1→2→1→3→4 段落顺序轮播 --- */
 function scheduleStep(s, t) {
-  const ch = PROG[Math.floor(s / 16) % PROG.length];
+  // 按段落长度把全局小节号换算成 (段落索引 oi, 段内小节 bar)
+  const cycle = SEC_LEN.reduce((a, b) => a + b, 0);   // 一圈总小节数
+  let pos = Math.floor(s / 16) % cycle;
+  let oi = 0;
+  while (pos >= SEC_LEN[SEC_ORDER[oi]]) {
+    pos -= SEC_LEN[SEC_ORDER[oi]];
+    oi++;
+  }
+  const secIdx = SEC_ORDER[oi];
+  const bar = pos;                            // 段内小节
   const st = s % 16;
+  const ch = SEC_CHART[secIdx][bar];
   if (st % 4 === 0) kick(t);                    // 四踩底鼓
   if (st === 4 || st === 12) snare(t);          // 2、4 拍军鼓
   if (st % 2 === 1) hat(t);                     // 反拍踩镲
   if (st % 2 === 0) bass(ch.root, t, st === 0 ? 0.22 : 0.15);
-  const seq = [ch.triad[0], ch.triad[1], ch.triad[2], ch.triad[1]];
-  arp(seq[st % 4] * 2, t);                      // 十六分琶音
+  if (secIdx === 0) {                           // 段1：原版琶音原样
+    const seq = [ch.triad[0], ch.triad[1], ch.triad[2], ch.triad[1]];
+    arp(seq[st % 4] * 2, t);
+  } else {                                      // 段2/3/4：同一件琴弹高音区新调子
+    const tones = [ch.triad[0] * 2, ch.triad[1] * 2, ch.triad[2] * 2,
+                   ch.triad[0] * 4, ch.triad[1] * 4, ch.triad[2] * 4];
+    const pat = SEC_PAT[secIdx][(bar >> 1) & 1];
+    arp(tones[pat[st]], t);                     // 十六分琶音（新音序）
+  }
 }
 function musicPump() {
   while (mNextT < actx.currentTime + 0.16) {
