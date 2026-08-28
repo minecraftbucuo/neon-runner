@@ -1,0 +1,17 @@
+{
+  "name": "neon-runner-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "neon-runner 联机服务：静态托管 dist/ + WebSocket 房间竞速（薄转发服务器）",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
