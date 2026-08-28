@@ -66,7 +66,14 @@ export function createNetClient() {
     connecting = new Promise((resolve, reject) => {
       try { ws = new WebSocket(url); }
       catch (e) { net.status = 'error'; net.errMsg = '无法建立连接'; reject(e); return; }
-      ws.onopen = () => { connecting = null; resolve(); };
+      ws.onopen = () => {
+        connecting = null;
+        // 连接即心跳（服务器 15s 无消息判掉线；大厅等人间也会被踢）
+        clearInterval(pingTimer);
+        pingTimer = setInterval(pingOnce, PING_INTERVAL);
+        pingOnce();
+        resolve();
+      };
       ws.onerror = () => {
         if (connecting) { connecting = null; net.status = 'error'; net.errMsg = '连接服务器失败'; reject(new Error('connect fail')); }
       };
@@ -106,11 +113,10 @@ export function createNetClient() {
     net.rtt = mid;
   }
 
-  /** 服务器时钟 → 本地时钟（startAt 为服务器 epoch ms） */
+  /** 服务器时钟 → 本地 performance.now 域（startAt 为服务器 Date.now() epoch ms）
+      两域原点不同：用 Date.now() 差值转域（误差仅为收发延迟与时钟偏移，同机几毫秒） */
   function serverToLocal(serverEpochMs) {
-    // serverEpochMs 是 Date.now() 域；本地同域直接比较，误差主要为单程延迟
-    // 更精细的对表：用 rtt/2 修正（服务器发出时刻早于到达时刻 rtt/2）
-    return serverEpochMs - (net.rtt ? net.rtt / 2 : 0);
+    return performance.now() + (serverEpochMs - Date.now());
   }
 
   // ---------- 房间操作 ----------
