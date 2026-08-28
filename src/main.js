@@ -11,6 +11,7 @@ import { setupInput } from './core/input.js';
 import { createController } from './core/controller.js';
 import { createWorld } from './entities/world.js';
 import { createSpace } from './entities/space.js';
+import { createSun } from './entities/sun.js';
 import { createPlayer } from './entities/player.js';
 import { createObstacles } from './entities/obstacles.js';
 import { createCoins } from './entities/coins.js';
@@ -40,7 +41,7 @@ function boot() {
   scene.fog = new THREE.Fog(0x05060f, 16, 52);
 
   const camera = new THREE.PerspectiveCamera(
-    70, window.innerWidth / window.innerHeight, 0.1, 220);
+    70, window.innerWidth / window.innerHeight, 0.1, 900); // 远裁剪面拉远：容纳深空出生的巨型太阳
 
   // 灯光
   scene.add(new THREE.AmbientLight(0x8899bb, 0.7));
@@ -51,12 +52,14 @@ function boot() {
   // 各系统
   const world = createWorld(scene);
   const space = createSpace(scene, camera);
+  const sunSystem = createSun(scene);
+  sunSystem.onShake((k) => { G.shake = Math.max(G.shake, k); });
   const player = createPlayer(scene);
   const obstacles = createObstacles(scene);
   const coins = createCoins(scene);
   const fx = createEffects(scene);
   const controller = createController({
-    camera, world, player, obstacles, coins, fx, hud, overlay,
+    camera, world, player, obstacles, coins, fx, hud, overlay, sunSystem,
   });
 
   // 事件订阅：核心只发语义事件，外围各管各的

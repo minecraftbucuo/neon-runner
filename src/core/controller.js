@@ -6,8 +6,8 @@ import { drainCommands } from './input.js';
 import { BASE_SPD, MAX_SPD, BOOST_SPD, TURBO_ACCEL, TURBO_START_SPD, TURBO_MAX_SPD, FOV_N, FOV_B, LANES, LANE_W } from '../config.js';
 
 export function createController(ctx) {
-  // ctx = { camera, world, player, obstacles, coins, fx, hud, overlay }
-  const { camera, world, player, obstacles, coins, fx, hud, overlay } = ctx;
+  // ctx = { camera, world, player, obstacles, coins, fx, hud, overlay, sunSystem }
+  const { camera, world, player, obstacles, coins, fx, hud, overlay, sunSystem } = ctx;
 
   let rng = null; // 本局种子随机源（赛道可复现）
 
@@ -497,6 +497,7 @@ export function createController(ctx) {
     // 世界滚动与特效
     world.updateScroll(G.speed * dt, t);
     fx.update(dt);
+    sunSystem.update(dt, t, G.speed, G.mode === 'playing' || G.demo);
     player.update(dt, G.targetLane);
 
     // 相机：平滑跟随 + 待机摇摆 + 撞击震动
