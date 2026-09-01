@@ -27,9 +27,5 @@ npm start                         # 默认 :3000，同时托管 dist/ 与 /ws
 
 ## GitHub Pages 部署（单机模式）
 
-```bash
-npm run build
-npx gh-pages -d dist
-```
+已配置 GitHub Actions 自动部署（`.github/workflows/deploy.yml`）：推送到 `master` 即自动构建并发布，无需手动操作（Settings → Pages 的 Source 需为 "GitHub Actions"）。
 
-推送后在仓库 Settings → Pages 选择 `gh-pages` 分支即可。
