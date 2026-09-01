@@ -1,5 +1,5 @@
 # 自动部署到 GitHub Pages：推送到 master 即触发
-# 构建 Vite 前端 → 上传产物 → 发布 Pages（官方 actions 组合）
+# 构建前端 → 将 dist/ 推送到 gh-pages 分支（Pages 已配置为监听该分支）
 name: Deploy to GitHub Pages
 
 on:
@@ -8,17 +8,15 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 # 同一时间只跑一次部署，新推送取消进行中的旧部署
 concurrency:
-  group: pages
+  group: pages-deploy
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,16 +30,12 @@ jobs:
 
       - run: npm run build
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Push dist to gh-pages branch
+        run: |
+          cd dist
+          git init -b gh-pages
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "deploy: ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
