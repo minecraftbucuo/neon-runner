@@ -116,14 +116,24 @@ function boot() {
   });
 
   // ---------- 联机 UI ----------
-  overlay.onVersus(() => { if (G.mode === 'ready') overlay.showNetEntry(); });
+  // 静态托管检测：GitHub Pages 只发文件、跑不了 WebSocket 服务器，
+  // 联机入口直接给明确提示，不发起注定失败的连接。
+  const isStaticHost = location.hostname.endsWith('.github.io');
+  const STATIC_HINT = '当前为静态托管环境（GitHub Pages），未部署联机服务器。单机三大模式可正常游玩，联机需自托管部署（见 README）。';
+  overlay.onVersus(() => {
+    if (G.mode !== 'ready') return;
+    overlay.showNetEntry();
+    if (isStaticHost) overlay.setNetStatus(STATIC_HINT);
+  });
   overlay.onNetCreate((name) => {
+    if (isStaticHost) { overlay.setNetStatus(STATIC_HINT); return; }
     overlay.setNetStatus('连接服务器…');
     net.createRoom(name)
       .then(() => overlay.setNetStatus('等待服务器响应…'))
       .catch(() => overlay.setNetStatus('连接服务器失败'));
   });
   overlay.onNetJoin((room, name) => {
+    if (isStaticHost) { overlay.setNetStatus(STATIC_HINT); return; }
     if (!/^[A-Z0-9]{4}$/.test(room)) { overlay.setNetStatus('请输入 4 位房间码'); return; }
     overlay.setNetStatus('连接服务器…');
     net.joinRoom(room, name)

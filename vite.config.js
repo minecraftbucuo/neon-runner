@@ -4,6 +4,8 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  // 相对路径：GitHub Pages 子路径（用户名.github.io/仓库名/）下资源才能正确加载
+  base: './',
   server: {
     proxy: {
       '/ws': {
