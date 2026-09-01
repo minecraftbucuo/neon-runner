@@ -24,7 +24,7 @@ const nextId = () => 'p' + (uidSeq++).toString(36) + crypto.randomBytes(2).toStr
 
 // 4 位大写字母数字房间码（去掉易混淆 0/O/1/I）
 function newRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = '23456789';
   let code;
   do {
     code = '';
