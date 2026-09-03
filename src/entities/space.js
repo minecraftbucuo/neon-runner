@@ -2,7 +2,8 @@
 // 性能策略：原实现每帧对全屏每个像素跑 4 八度 3D 噪声 + 程序化星星，
 // 集显上这是最大的单帧开销（而且先画满屏、再被赛道盖掉一大半）。
 // 现改为开局把穹顶一次性烘进立方体贴图充当 scene.background —— 主循环
-// 每帧只采样贴图；星星闪烁改由少量点精灵（Points）叠加补回，观感不变。
+// 每帧只采样贴图；星星整体密度由烘焙保证（与原版同款双层星场），
+// 闪烁的"活感"由少量点精灵（Points）叠加补回，观感与帧成本双赢。
 import * as THREE from 'three';
 
 const VERT = `
@@ -12,7 +13,7 @@ void main() {
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }`;
 
-// 烘焙用：深空渐变 + 银河带 + 噪声星云（星星由点精灵层负责，不进烘焙）
+// 烘焙用：与原版同一套 shader（uTime 固定 0，星星亮度随机相位定格）
 const FRAG = `
 precision highp float;
 uniform float uTime;
@@ -47,6 +48,23 @@ float fbm(vec3 p) {
   return v;
 }
 
+// 一层程序化星星（cell 哈希 → 稀疏亮点）
+vec3 starLayer(vec3 dir, float scale, float density, float bright) {
+  vec3 g = dir * scale;
+  vec3 id = floor(g);
+  float h = hash13(id);
+  if (h > density) return vec3(0.0);
+  vec3 offs = vec3(hash13(id + 19.19), hash13(id + 47.7), hash13(id + 83.13)) - 0.5;
+  float d = length(fract(g) - 0.5 - offs * 0.6);
+  float tw = 0.6 + 0.4 * sin(uTime * (1.5 + h * 4.0) + h * 91.0);
+  float core  = smoothstep(0.11, 0.0, d);
+  float glow  = smoothstep(0.30, 0.0, d) * 0.30;
+  vec3 tint = mix(vec3(1.0), vec3(0.62, 0.84, 1.0), step(0.72, h));
+  tint = mix(tint, vec3(1.0, 0.80, 0.55), step(0.90, h));
+  float variety = smoothstep(density, density * 0.30, h);
+  return tint * (core * 1.25 + glow) * bright * tw * variety;
+}
+
 void main() {
   vec3 dir = normalize(vPos);
 
@@ -66,15 +84,19 @@ void main() {
   nebCol = mix(nebCol, vec3(0.30, 0.09, 0.20), vnoise(dir * 1.3 - 3.0));
   col += nebCol * neb * 0.9;
 
+  // 星星：稀疏亮星 + 密集暗星（银河带内加密）——密度与原版一致
+  col += starLayer(dir, 24.0, 0.055, 1.35);
+  col += starLayer(dir, 70.0, 0.28, 0.5) * (0.7 + 0.6 * band);
+
   // 银河带整体微光
   col += vec3(0.05, 0.06, 0.11) * band * (0.4 + 0.3 * n1);
 
   gl_FragColor = vec4(col, 1.0);
 }`;
 
-// 闪烁星层：亮星快速眨眼 + 暗星密铺（补回烘焙天丢弃的星星与闪烁感）
-const STARS_BRIGHT = 220;
-const STARS_FAINT = 600;
+// 闪烁星层：只负责"眨眼"的活感，整体密度由烘焙星场保证
+const STARS_BRIGHT = 320;
+const STARS_FAINT = 1400;
 const SKY_R = 62;
 
 /** 微型圆形软光斑贴图：点精灵用，避免方形像素闪烁 */
@@ -144,8 +166,9 @@ export function createSpace(scene, camera, renderer) {
   dome.layers.set(1);   // 只给烘焙立方相机（layer 1）渲染；主相机不再逐像素画它
   scene.add(dome);
 
-  // 烘焙目标：一张立方体贴图（纯渐变/噪声，分辨率不需要顶格）
-  const cubeRT = new THREE.WebGLCubeRenderTarget(768, {
+  // 烘焙目标：一张立方体贴图。星星(尤其密集暗星)偏细小，取 1024 保证
+  // 清晰度；代价只是开机时一次性烘焙多花几十毫秒，每帧成本不变。
+  const cubeRT = new THREE.WebGLCubeRenderTarget(1024, {
     generateMipmaps: true,
     minFilter: THREE.LinearMipmapLinearFilter,
   });
