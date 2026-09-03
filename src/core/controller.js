@@ -663,8 +663,11 @@ export function createController(ctx) {
     const fovTarget = turbo
       ? FOV_N + (FOV_B - FOV_N) * turboFrac           // 视场角随速度平滑拉宽
       : (G.boostingNow ? FOV_B : FOV_N);
-    camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 5);
-    camera.updateProjectionMatrix();
+    const fovNew = camera.fov + (fovTarget - camera.fov) * Math.min(1, dt * 5);
+    if (Math.abs(fovNew - camera.fov) > 0.01) {
+      camera.fov = fovNew;
+      camera.updateProjectionMatrix();  // 数值没动就不重算投影矩阵
+    }
     hud.setBoost(G.boostingNow,
       G.gameMode === 'auto' ? '»» 极速 · 自动驾驶 ««'
     : turbo ? '»» 极速模式 ««' : '»» 加速中 ««');

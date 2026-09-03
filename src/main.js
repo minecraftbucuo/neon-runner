@@ -16,6 +16,7 @@ import { createPlayer } from './entities/player.js';
 import { createObstacles } from './entities/obstacles.js';
 import { createCoins } from './entities/coins.js';
 import { createEffects } from './fx/effects.js';
+import { createAdaptiveResolution } from './fx/quality.js';
 import { initAudio, toggleMusic, setEnergy, updateWind } from './audio/music.js';
 import { sfx } from './audio/sfx.js';
 import { createHud } from './ui/hud.js';
@@ -38,7 +39,8 @@ function boot() {
     overlay.showFatal();
     return;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // 像素比由自适应分辨率模块接管（初始封顶 1.5，按帧率自动升降）
+  const quality = createAdaptiveResolution(renderer);
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
@@ -57,7 +59,7 @@ function boot() {
 
   // 各系统
   const world = createWorld(scene);
-  const space = createSpace(scene, camera);
+  const space = createSpace(scene, camera, renderer);
   const sunSystem = createSun(scene, camera);
   sunSystem.onShake((k) => { G.shake = Math.max(G.shake, k); });
   const player = createPlayer(scene);
@@ -191,7 +193,9 @@ function boot() {
   let progAcc = 0;
   function tick() {
     requestAnimationFrame(tick);
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const rawDt = clock.getDelta();
+    const dt = Math.min(rawDt, 0.05);
+    quality.frame(rawDt);
     const t = clock.elapsedTime;
     controller.frameUpdate(dt, t);
     ghosts.update(dt);

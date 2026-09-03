@@ -130,8 +130,8 @@ export function createWorld(scene) {
 
     // 圆形光斑点
     const ptsGeo = new THREE.BufferGeometry();
-    ptsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    ptsGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    ptsGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+    ptsGeo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
     const ptsMat = new THREE.PointsMaterial({
       size, map: dotTex, vertexColors: true, transparent: true, opacity,
       depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true,
@@ -147,8 +147,8 @@ export function createWorld(scene) {
       lineCol[i * 6 + 3] = col[i * 3]; lineCol[i * 6 + 4] = col[i * 3 + 1]; lineCol[i * 6 + 5] = col[i * 3 + 2];
     }
     const lineGeo = new THREE.BufferGeometry();
-    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
-    lineGeo.setAttribute('color', new THREE.BufferAttribute(lineCol, 3));
+    lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3).setUsage(THREE.DynamicDrawUsage));
+    lineGeo.setAttribute('color', new THREE.BufferAttribute(lineCol, 3).setUsage(THREE.DynamicDrawUsage));
     const lineMat = new THREE.LineBasicMaterial({
       vertexColors: true, transparent: true, opacity: 0,
       depthWrite: false, blending: THREE.AdditiveBlending,
@@ -157,7 +157,7 @@ export function createWorld(scene) {
     lines.frustumCulled = false;
     scene.add(lines);
 
-    return { pts, ptsGeo, ptsMat, lineGeo, lineMat, lineCol, base, phase, fade, drift, count, col, streakMul, opacity };
+    return { pts, ptsGeo, ptsMat, lines, lineGeo, lineMat, lineCol, base, phase, fade, drift, count, col, streakMul, opacity };
   }
 
   const layers = [
@@ -173,6 +173,7 @@ export function createWorld(scene) {
   ];
 
   let boostLvl = 0; // 冲刺强度 0..1（决定光条可见度与长度）
+  let frameNo = 0;  // 闪烁色隔帧重算用
 
   function updateScroll(dz, t) {
     crossLines.position.z = (crossLines.position.z + dz) % CROSS_STEP;
@@ -189,9 +190,15 @@ export function createWorld(scene) {
     const dt = dz / speed;
     boostLvl += ((G.boostingNow ? 1 : 0) - boostLvl) * Math.min(1, dt * 4);
 
+    // 集显省带宽：光条不可见时整层隐藏（不画、不上传）；闪烁色 30Hz 足够
+    frameNo++;
+    const streaksOn = boostLvl > 0.015;
+    const doTwinkle = (frameNo & 1) === 0;
+
     for (let li = 0; li < layers.length; li++) {
       const L = layers[li];
       const len = L.streakMul * (0.5 + speed * 0.10) * boostLvl; // 光条长度
+      L.lines.visible = streaksOn;
 
       const pos = L.ptsGeo.attributes.position.array;
       const lpos = L.lineGeo.attributes.position.array;
@@ -200,27 +207,33 @@ export function createWorld(scene) {
         if (z > 18) z -= 148;
         pos[i * 3 + 2] = z;
         // 光条：头在粒子位置，尾拖在后方(z - len)
-        lpos[i * 6]     = pos[i * 3]; lpos[i * 6 + 1] = pos[i * 3 + 1]; lpos[i * 6 + 2] = z;
-        lpos[i * 6 + 3] = pos[i * 3]; lpos[i * 6 + 4] = pos[i * 3 + 1]; lpos[i * 6 + 5] = z - len;
+        if (streaksOn) {
+          lpos[i * 6]     = pos[i * 3]; lpos[i * 6 + 1] = pos[i * 3 + 1]; lpos[i * 6 + 2] = z;
+          lpos[i * 6 + 3] = pos[i * 3]; lpos[i * 6 + 4] = pos[i * 3 + 1]; lpos[i * 6 + 5] = z - len;
+        }
       }
       L.ptsGeo.attributes.position.needsUpdate = true;
-      L.lineGeo.attributes.position.needsUpdate = true;
+      if (streaksOn) L.lineGeo.attributes.position.needsUpdate = true;
 
       // 呼吸 + 光条随冲刺淡入淡出
       L.ptsMat.opacity = L.opacity * (0.9 + 0.1 * Math.sin(t * 0.4 + li * 1.8));
-      L.lineMat.opacity = boostLvl * (li === 1 ? 0.85 : 0.6);
+      L.lineMat.opacity = streaksOn ? boostLvl * (li === 1 ? 0.85 : 0.6) : 0;
 
       // 逐颗闪烁（点与光条共用亮色）
-      const c = L.col;
-      for (let i = 0; i < L.count; i++) {
-        const tw = 0.75 + 0.25 * Math.sin(t * L.fade[i] + L.phase[i]);
-        const r = L.base[i * 3] * tw, g = L.base[i * 3 + 1] * tw, b = L.base[i * 3 + 2] * tw;
-        c[i * 3] = r; c[i * 3 + 1] = g; c[i * 3 + 2] = b;
-        L.lineCol[i * 6] = r; L.lineCol[i * 6 + 1] = g; L.lineCol[i * 6 + 2] = b;
-        L.lineCol[i * 6 + 3] = r; L.lineCol[i * 6 + 4] = g; L.lineCol[i * 6 + 5] = b;
+      if (doTwinkle) {
+        const c = L.col;
+        for (let i = 0; i < L.count; i++) {
+          const tw = 0.75 + 0.25 * Math.sin(t * L.fade[i] + L.phase[i]);
+          const r = L.base[i * 3] * tw, g = L.base[i * 3 + 1] * tw, b = L.base[i * 3 + 2] * tw;
+          c[i * 3] = r; c[i * 3 + 1] = g; c[i * 3 + 2] = b;
+          if (streaksOn) {
+            L.lineCol[i * 6] = r; L.lineCol[i * 6 + 1] = g; L.lineCol[i * 6 + 2] = b;
+            L.lineCol[i * 6 + 3] = r; L.lineCol[i * 6 + 4] = g; L.lineCol[i * 6 + 5] = b;
+          }
+        }
+        L.ptsGeo.attributes.color.needsUpdate = true;
+        if (streaksOn) L.lineGeo.attributes.color.needsUpdate = true;
       }
-      L.ptsGeo.attributes.color.needsUpdate = true;
-      L.lineGeo.attributes.color.needsUpdate = true;
     }
   }
 
