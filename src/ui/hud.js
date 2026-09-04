@@ -11,13 +11,17 @@ export function createHud() {
   const $raceMarkers = document.getElementById('raceMarkers');
   const $countdown = document.getElementById('countdown');
   let shownScore = -1;
+  let lastScoreWrite = 0;
   let tagText = '»» 加速中 ««';
   let lastCountdown = null;
 
   return {
-    /** 分数变化时才写 DOM */
+    /** 分数变化时才写 DOM；跑动计分按 10Hz 节流（每帧写文本会拖累弱机） */
     setScore(score, coins) {
       if (score === shownScore) return;
+      const now = performance.now();
+      if (now - lastScoreWrite < 100) return;
+      lastScoreWrite = now;
       shownScore = score;
       $score.textContent = String(score);
       $coin.textContent = '◆ ' + coins;

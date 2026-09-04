@@ -16,7 +16,7 @@ import { createPlayer } from './entities/player.js';
 import { createObstacles } from './entities/obstacles.js';
 import { createCoins } from './entities/coins.js';
 import { createEffects } from './fx/effects.js';
-import { createAdaptiveResolution } from './fx/quality.js';
+import { createAdaptiveResolution, createFpsMeter } from './fx/quality.js';
 import { initAudio, toggleMusic, setEnergy, updateWind } from './audio/music.js';
 import { sfx } from './audio/sfx.js';
 import { createHud } from './ui/hud.js';
@@ -189,6 +189,16 @@ function boot() {
   }
 
   // 主循环
+  // 主循环前预编译全部材质：太阳第一次出现、终点的黑白格贴图等
+  // 若在游戏中途才编译着色器，会造成一次明显的掉帧卡顿
+  renderer.compile(scene, camera);
+
+  // 帧率/渲染比例小仪表（F 键开关），便于定位"什么时候掉帧"
+  const fpsMeter = createFpsMeter(() => quality.ratio);
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyF' && e.target.tagName !== 'INPUT') fpsMeter.toggle();
+  });
+
   const clock = new THREE.Clock();
   let progAcc = 0;
   function tick() {
@@ -196,6 +206,7 @@ function boot() {
     const rawDt = clock.getDelta();
     const dt = Math.min(rawDt, 0.05);
     quality.frame(rawDt);
+    fpsMeter.frame(rawDt);
     const t = clock.elapsedTime;
     controller.frameUpdate(dt, t);
     ghosts.update(dt);

@@ -37,8 +37,10 @@ float vnoise(vec3 p){
 }
 float fbm(vec3 p){
   float v = 0.0, a = 0.5;
-  for(int i=0;i<4;i++){ v += a*vnoise(p); p = p*2.05 + vec3(11.3,7.9,3.1); a *= 0.55; }
-  return v;
+  // 3 八度（原 4）：集显上近掠时太阳可占小半屏，噪声是主要逐像素开销；
+  // 归一化回 ~1.0 保持原有明暗范围
+  for(int i=0;i<3;i++){ v += a*vnoise(p); p = p*2.05 + vec3(11.3,7.9,3.1); a *= 0.55; }
+  return v * 1.08;
 }
 
 void main(){
@@ -70,7 +72,7 @@ export function createSun(scene) {
     fragmentShader: SUN_FRAG,
     fog: false, transparent: true,
   });
-  const sun = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 64, 40), sunMat);
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 48, 32), sunMat);
   group.add(sun);
 
   // 日冕烟羽：大颗柔烟团贴着球面缓慢外飘，边飘边膨胀、旋转、渐渐消散。
@@ -98,6 +100,9 @@ export function createSun(scene) {
   }
 
   function setFade(k) {
+    // 透明度趋零时直接不画：深空远处的小亮点阶段省掉整个圆盘的
+    // 火焰着色器逐像素开销（透明混合为 0 但片元照样全跑）
+    sun.visible = k > 0.015;
     for (const m of glowMats) {
       if (m.userData.baseOpacity === undefined) m.userData.baseOpacity = m.opacity ?? 1;
       if (m.uniforms && m.uniforms.uFade) m.uniforms.uFade.value = m.userData.baseOpacity * k;
