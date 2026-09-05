@@ -157,9 +157,9 @@ neon-runner/
 
 ### 7.1 时间对表（开局同步）
 
-1. 客户端进房后发 `{t:'ping', ts}`，收 `{t:'pong', ts}` 记录 RTT，计算 `serverOffset = serverNow - (localNow - RTT/2)`，多次取样取中位数。
-2. `startAt` 是服务器时钟；本地换算：`localStartAt = startAt - serverOffset`。
-3. 倒计时显示到 `localStartAt`，到点调用本地 `run:start`（与单机同一入口）。剩余误差为 RTT/2 的一半以内，几十毫秒级，无感。
+1. 客户端连接后每 5s 发 `{t:'ping', ts}`，服务器回 `{t:'pong', ts, now}`（now 为服务器时钟发出时刻）。客户端计算 `serverOffset = now - (收到时刻 - RTT/2)`，即 `serverEpoch ≈ performance.now() + serverOffset`；保留最近 6 个样本取 **RTT 最小者**（往返越快，收发不对称造成的误差越小，剩余误差 ≤ 不对称延迟的一半，毫秒级）。
+2. `startAt` 是服务器时钟；本地换算：`localStartAt = startAt - serverOffset`。**禁止**用本机 `Date.now()` 差值换算——玩家电脑钟偏可达数秒，会导致各玩家倒计时起点不一致。
+3. 倒计时显示到 `localStartAt`，到点调用本地 `run:start`（与单机同一入口）。
 
 ### 7.2 幽灵车渲染（插值）
 

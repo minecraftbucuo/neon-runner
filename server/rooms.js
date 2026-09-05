@@ -333,9 +333,9 @@ export function handleConnection(ws) {
     try { m = JSON.parse(raw.toString()); } catch { return; }
     if (!m || typeof m.t !== 'string') return;
 
-    // 心跳
+    // 心跳（now 为服务器时钟发出时刻：客户端据此对表，消除玩家本机钟偏）
     if (m.t === 'ping') {
-      if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'pong', ts: m.ts }));
+      if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'pong', ts: m.ts, now: Date.now() }));
       return;
     }
     if (!room) {

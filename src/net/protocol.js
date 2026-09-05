@@ -22,7 +22,7 @@ export const T = {
   BOARD: 'board',         // {entries, final?}
   LOBBY: 'lobby',         // {} 回准备阶段
   ERROR: 'error',         // {code, msg}
-  PONG: 'pong',           // {ts}
+  PONG: 'pong',           // {ts, now} now=服务器时钟发出时刻（对表用，消除本机钟偏）
 };
 
 /** 玩家状态（pos.st / roster.status） */

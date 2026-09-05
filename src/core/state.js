@@ -55,6 +55,7 @@ export const G = {
     roomList: [],             // [{code,count,max}] 在线可加入房间（入口面板浏览用）
     ghosts: null,             // Map<id, {snapshots[]}>（client.js 维护）
     rtt: 0,
+    serverOffset: null,       // serverEpoch ≈ performance.now() + serverOffset（ping/pong 实测钟偏；null=未测得）
     errMsg: null,
   },
 };
