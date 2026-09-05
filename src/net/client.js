@@ -20,8 +20,6 @@ export function createNetClient() {
   let lastPosSent = 0;
   /** @type {Map<string, {snapshots: [{t,z,lane,x,spd,score,st}], lastMsg:number}>} 远端玩家快照缓冲 */
   const ghosts = new Map();
-  /** 对表样本：serverEpoch ≈ performance.now() + k（k 存 net.serverOffset，取 RTT 最小样本） */
-  let offsetSamples = [];
   let rtts = [];
   let connecting = null;      // 进行中的 connect() Promise（防重入）
   let connectingReject = null; // 未连上时的失败回调（onclose 兜底 reject）
@@ -36,12 +34,10 @@ export function createNetClient() {
       roster: [],
       roomList: [],
       rtt: 0,
-      serverOffset: null,     // serverEpoch ≈ performance.now() + serverOffset（对表实测；null=未测得）
-      startLocalAt: 0,        // 服务器 startAt 换算的本地开跑时刻（performance.now 域）
+      startLocalAt: 0,        // 本地开跑时刻（performance.now 域；收到 start 起倒计时 cd 毫秒）
       errMsg: null,
     });
     rtts.length = 0;
-    offsetSamples.length = 0;
     ghosts.clear();
     stopTimers();
   }
@@ -118,37 +114,18 @@ export function createNetClient() {
     resetNetState('offline');
   }
 
-  // ---------- 时间对表（§7.1） ----------
+  // ---------- 心跳与 RTT（§7.1；开局同步不依赖时钟，见 START 处理） ----------
 
   function pingOnce() {
     send({ t: T.PING, ts: performance.now() });
   }
 
   function onPong(m) {
-    const recvP = performance.now();
-    const rtt = recvP - m.ts;
+    const rtt = performance.now() - m.ts;
     rtts.push(rtt);
     if (rtts.length > PING_SAMPLES) rtts.shift();
     const sorted = [...rtts].sort((a, b) => a - b);
     net.rtt = sorted[Math.floor(sorted.length / 2)];
-    // 时钟偏移：服务器在 m.now（服务器 epoch）时刻发出本包，
-    // 对应本地接收时刻回退半个 RTT → serverEpoch ≈ performance.now() + k
-    // 误差仅为收发不对称延迟的一半；RTT 越小的样本误差越小，故取 RTT 最小者
-    if (typeof m.now === 'number') {
-      offsetSamples.push({ k: m.now - recvP + rtt / 2, rtt });
-      if (offsetSamples.length > PING_SAMPLES) offsetSamples.shift();
-      let best = offsetSamples[0];
-      for (const s of offsetSamples) if (s.rtt < best.rtt) best = s;
-      net.serverOffset = best.k;
-    }
-  }
-
-  /** 服务器时钟 → 本地 performance.now 域（startAt 为服务器 Date.now() epoch ms）
-      优先用 ping/pong 实测偏移（不受玩家本机墙钟不准的影响）；
-      尚无样本时兜底按本机 Date.now() 差值（误差=本机钟偏，正常流程不会走到：连接即发 ping） */
-  function serverToLocal(serverEpochMs) {
-    const k = net.serverOffset ?? (Date.now() - performance.now());
-    return serverEpochMs - k;
   }
 
   // ---------- 房间操作 ----------
@@ -242,8 +219,10 @@ export function createNetClient() {
         net.roster = m.roster;
         net.status = 'racing';
         net.rtt = net.rtt || 0;
-        pingOnce();           // 补一个对表样本（连接起每 5s 已在持续采样）
-        net.startLocalAt = serverToLocal(m.startAt);
+        // 开局同步：倒计时从「收到本消息」起算 cd 毫秒。服务器对全员同一时刻广播，
+        // 各客户端收到即开数——不做任何服务器/本机时钟换算，彻底免疫玩家电脑钟偏；
+        // 残余误差仅为消息送达延迟之差（几十毫秒，无感）
+        net.startLocalAt = performance.now() + (m.cd || 3500);
         bus.emit('net:start', {
           seed: m.seed, len: m.len,
           localStartAt: net.startLocalAt,

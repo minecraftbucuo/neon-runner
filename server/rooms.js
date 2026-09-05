@@ -158,6 +158,7 @@ class Room {
     this.broadcast({
       t: 'start', seed: this.seed, len: this.len,
       startAt: this.startAt, roster: this.rosterView(), duration: ROUND_DURATION,
+      cd: START_DELAY_MS,   // 倒计时毫秒数：客户端从「收到本消息」起倒计时（不做任何时钟换算）
     });
     broadcastRoomList();          // 开局后房间移出可加入列表
 
@@ -333,9 +334,9 @@ export function handleConnection(ws) {
     try { m = JSON.parse(raw.toString()); } catch { return; }
     if (!m || typeof m.t !== 'string') return;
 
-    // 心跳（now 为服务器时钟发出时刻：客户端据此对表，消除玩家本机钟偏）
+    // 心跳（仅回显测 RTT；开局同步不依赖时钟，见 start 消息的 cd 字段）
     if (m.t === 'ping') {
-      if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'pong', ts: m.ts, now: Date.now() }));
+      if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'pong', ts: m.ts }));
       return;
     }
     if (!room) {

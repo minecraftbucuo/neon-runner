@@ -17,12 +17,12 @@ export const T = {
   JOINED: 'joined',       // {room, you, roster}
   ROOM_LIST: 'roomList',  // {rooms: [{code, count, max}]} 可加入房间（lobby 且未满），变化时实时推送
   ROSTER: 'roster',       // {roster}
-  START: 'start',         // {seed, len, startAt, roster, duration}
+  START: 'start',         // {seed, len, cd, startAt, roster, duration} cd=倒计时ms，客户端从收到起倒计时
   FINISH_BC: 'finish',    // {id, rank, time, score}
   BOARD: 'board',         // {entries, final?}
   LOBBY: 'lobby',         // {} 回准备阶段
   ERROR: 'error',         // {code, msg}
-  PONG: 'pong',           // {ts, now} now=服务器时钟发出时刻（对表用，消除本机钟偏）
+  PONG: 'pong',           // {ts}
 };
 
 /** 玩家状态（pos.st / roster.status） */

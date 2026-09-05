@@ -126,7 +126,7 @@ neon-runner/
 
 | 方向 | 消息 | 字段 | 说明 |
 |---|---|---|---|
-| S→C | `{t:'start', seed, len, startAt, roster, duration}` | seed：赛道种子；**len：赛道长度**；startAt：**服务器时钟**的开跑时刻（ms）；duration：单局上限秒数 | 全员就绪即发；客户端倒计时到 startAt 开跑 |
+| S→C | `{t:'start', seed, len, cd, startAt, roster, duration}` | seed：赛道种子；**len：赛道长度**；**cd：倒计时毫秒**（客户端从收到消息起倒计时，不做时钟换算）；startAt：服务器时钟开跑时刻（仅服务器内部冲线校验用）；duration：单局上限秒数 | 全员就绪即同一时刻广播；客户端收到即开数，cd 毫秒后开跑 |
 
 ### 6.3 对局中
 
@@ -157,9 +157,9 @@ neon-runner/
 
 ### 7.1 时间对表（开局同步）
 
-1. 客户端连接后每 5s 发 `{t:'ping', ts}`，服务器回 `{t:'pong', ts, now}`（now 为服务器时钟发出时刻）。客户端计算 `serverOffset = now - (收到时刻 - RTT/2)`，即 `serverEpoch ≈ performance.now() + serverOffset`；保留最近 6 个样本取 **RTT 最小者**（往返越快，收发不对称造成的误差越小，剩余误差 ≤ 不对称延迟的一半，毫秒级）。
-2. `startAt` 是服务器时钟；本地换算：`localStartAt = startAt - serverOffset`。**禁止**用本机 `Date.now()` 差值换算——玩家电脑钟偏可达数秒，会导致各玩家倒计时起点不一致。
-3. 倒计时显示到 `localStartAt`，到点调用本地 `run:start`（与单机同一入口）。
+1. **不做时钟换算**（教训：曾用 ping/pong 实测钟偏换算 startAt，但该方案要求服务器与全部客户端同时更新到位，任何一侧跑旧代码就会静默退回错误路径；且玩家本机钟偏可达数秒，`Date.now()` 差值换算直接带入秒级误差）。
+2. 服务器全员就绪后**同一时刻广播** `{t:'start', cd}`；客户端**从收到消息那刻起倒计时 cd 毫秒**，到点调用本地 `run:start`（与单机同一入口）。
+3. 各端开跑时刻差 = start 消息送达延迟之差（同一机房/地区通常 <50ms，无感）；玩家电脑时钟差多少都完全无影响。ping/pong 仅测 RTT 供网络状况展示。
 
 ### 7.2 幽灵车渲染（插值）
 
