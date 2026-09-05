@@ -25,6 +25,7 @@ export function createOverlay() {
   const $netJoin      = document.getElementById('netJoinBtn');
   const $netBack      = document.getElementById('netBackBtn');
   const $netStatus    = document.getElementById('netStatus');
+  const $netRoomList  = document.getElementById('netRoomList');
   const $netCodeBig   = document.getElementById('netRoomCodeBig');
   const $netPlayerList= document.getElementById('netPlayerList');
   const $netReady     = document.getElementById('netReadyBtn');
@@ -140,6 +141,20 @@ export function createOverlay() {
     // ---------- 联机 ----------
     /** 入口面板状态行（连接中/错误提示） */
     setNetStatus,
+    /** 在线房间列表（服务器实时推送；空数组显示空态） */
+    renderNetRooms(list) {
+      if (!list || list.length === 0) {
+        $netRoomList.innerHTML = '<div class="netRoomEmpty">暂无在线房间 · 创建一个吧</div>';
+        return;
+      }
+      let html = '';
+      for (const r of list) {
+        html += `<button class="netRoomItem" data-code="${r.code}">
+          <span class="code">${r.code}</span>
+          <span class="cnt">${r.count}/${r.max} 人</span></button>`;
+      }
+      $netRoomList.innerHTML = html;
+    },
     /** 联机入口（取名 + 建房/进房） */
     showNetEntry() {
       hide();
@@ -147,6 +162,7 @@ export function createOverlay() {
       $netEntry.classList.remove('hidden-el');
       $netPanel.classList.remove('hidden-el');
       setNetStatus('');
+      this.renderNetRooms([]);       // 先空态，连接后首帧 roomList 覆盖
       if (!$netName.value) $netName.focus();
     },
     hideNet() {
@@ -213,6 +229,15 @@ export function createOverlay() {
         e.stopPropagation();
         cb(($netRoomCode.value || '').trim().toUpperCase(),
            ($netName.value || '').trim() || '玩家');
+      });
+    },
+    /** 点击在线房间列表项加入（事件委托，房间码取自 data-code） */
+    onNetJoinRoom(cb) {
+      $netRoomList.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const item = e.target.closest('.netRoomItem');
+        if (!item) return;
+        cb(item.dataset.code, ($netName.value || '').trim() || '玩家');
       });
     },
     onNetBack(cb) {

@@ -6,6 +6,7 @@ export const T = {
   // C→S
   CREATE: 'create',       // {name} 建房
   JOIN: 'join',           // {room, name} 进房
+  ROOMS: 'rooms',         // {} 订阅在线房间列表（进房后自动取消）
   READY: 'ready',         // {v} 切换准备
   POS: 'pos',             // {z, lane, x, spd, score, st, seq} 10Hz 状态快照
   CRASH: 'crash',         // {z, lane} 撞墙眩晕开始
@@ -14,6 +15,7 @@ export const T = {
   PING: 'ping',           // {ts} 心跳
   // S→C
   JOINED: 'joined',       // {room, you, roster}
+  ROOM_LIST: 'roomList',  // {rooms: [{code, count, max}]} 可加入房间（lobby 且未满），变化时实时推送
   ROSTER: 'roster',       // {roster}
   START: 'start',         // {seed, len, startAt, roster, duration}
   FINISH_BC: 'finish',    // {id, rank, time, score}

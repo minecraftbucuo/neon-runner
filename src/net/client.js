@@ -23,7 +23,8 @@ export function createNetClient() {
   /** 对表：serverNow ≈ localNow + serverOffset */
   let serverOffset = 0;
   let rtts = [];
-  let connecting = null;
+  let connecting = null;      // 进行中的 connect() Promise（防重入）
+  let connectingReject = null; // 未连上时的失败回调（onclose 兜底 reject）
 
   const net = G.net;
 
@@ -33,6 +34,7 @@ export function createNetClient() {
       roomId: null,
       myId: null,
       roster: [],
+      roomList: [],
       rtt: 0,
       serverOffset: 0,
       startLocalAt: 0,        // 服务器 startAt 换算的本地开跑时刻（performance.now 域）
@@ -64,23 +66,42 @@ export function createNetClient() {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const url = `${proto}://${location.host}/ws`;
     connecting = new Promise((resolve, reject) => {
+      let opened = false;
+      connectingReject = reject;
       try { ws = new WebSocket(url); }
-      catch (e) { net.status = 'error'; net.errMsg = '无法建立连接'; reject(e); return; }
+      catch (e) { endConnectFail(); net.errMsg = '无法建立连接'; reject(e); return; }
       ws.onopen = () => {
+        opened = true;
         connecting = null;
+        connectingReject = null;
         // 连接即心跳（服务器 15s 无消息判掉线；大厅等人间也会被踢）
         clearInterval(pingTimer);
         pingTimer = setInterval(pingOnce, PING_INTERVAL);
         pingOnce();
         resolve();
       };
-      ws.onerror = () => {
-        if (connecting) { connecting = null; net.status = 'error'; net.errMsg = '连接服务器失败'; reject(new Error('connect fail')); }
+      // 失败判定统一走 onclose（error 后必跟 close）：
+      // 从未连上属于 connect() 失败路径，由调用方 catch 提示，不触发断线事件
+      // （net:closed 会关面板退菜单，入口阶段的连接失败不应踢用户）
+      ws.onclose = () => {
+        if (opened) { onClose(); return; }
+        if (connecting) {
+          const rej = connectingReject;
+          endConnectFail();
+          net.errMsg = '连接服务器失败';
+          rej?.(new Error('connect fail'));
+        }
       };
-      ws.onclose = onClose;
       ws.onmessage = onMessage;
     });
     return connecting;
+  }
+
+  /** connect() 失败收尾：清进行态、置错误状态（不广播 net:closed） */
+  function endConnectFail() {
+    connecting = null;
+    connectingReject = null;
+    resetNetState('error');
   }
 
   function onClose() {
@@ -129,6 +150,12 @@ export function createNetClient() {
   async function joinRoom(room, name) {
     await connect();
     send({ t: T.JOIN, room: String(room).toUpperCase(), name });
+  }
+
+  /** 订阅在线房间列表（入口面板用）：连上即收一帧，后续服务器实时推送 */
+  async function watchRooms() {
+    await connect();
+    send({ t: T.ROOMS });
   }
 
   function setReady(v) { send({ t: T.READY, v }); }
@@ -188,6 +215,11 @@ export function createNetClient() {
         net.roster = m.roster;
         net.status = 'lobby';
         bus.emit('net:joined', m);
+        return;
+
+      case T.ROOM_LIST:
+        net.roomList = m.rooms || [];
+        bus.emit('net:rooms', m);
         return;
 
       case T.ROSTER:
@@ -308,7 +340,7 @@ export function createNetClient() {
 
   return {
     connect, disconnect,
-    createRoom, joinRoom, setReady, again,
+    createRoom, joinRoom, watchRooms, setReady, again,
     sendPos,            // 供 controller 在 crash/finish 等关键时刻立即推送
     sampleGhost,
     get ghosts() { return ghosts; },

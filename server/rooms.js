@@ -19,6 +19,25 @@ const MIN_FINISH_MS = process.env.MIN_FINISH_MS !== undefined
 /** @type {Map<string, Room>} roomCode → Room */
 const rooms = new Map();
 
+/** @type {Set<import('ws').WebSocket>} 未进房、正在浏览房间列表的连接 */
+const lobbyWatchers = new Set();
+
+/** 房间列表视图：只列可立即加入的房间（lobby 阶段且未满员） */
+function roomListView() {
+  return [...rooms.values()]
+    .filter(r => r.phase === 'lobby' && r.players.size < MAX_PLAYERS)
+    .map(r => ({ code: r.code, count: r.players.size, max: MAX_PLAYERS }));
+}
+
+function sendRoomListTo(ws) {
+  if (ws.readyState === 1) ws.send(JSON.stringify({ t: 'roomList', rooms: roomListView() }));
+}
+
+/** 房间可见性变化（创建 / 进出 / 满员 / 开局 / 回大厅 / 销毁）时推送给所有浏览者 */
+function broadcastRoomList() {
+  for (const w of lobbyWatchers) sendRoomListTo(w);
+}
+
 let uidSeq = 1;
 const nextId = () => 'p' + (uidSeq++).toString(36) + crypto.randomBytes(2).toString('hex');
 
@@ -93,6 +112,7 @@ class Room {
     this.players.set(p.id, p);
     ws.send(JSON.stringify({ t: 'joined', room: this.code, you: p.id, roster: this.rosterView() }));
     this.sendRoster();
+    broadcastRoomList();          // 人数变化/新房间出现/满员移出列表
     return { player: p };
   }
 
@@ -102,12 +122,14 @@ class Room {
     this.players.delete(id);
     if (this.players.size === 0) { this.destroy(); return; }
     this.sendRoster();
+    broadcastRoomList();
   }
 
   destroy() {
     clearInterval(this.boardTimer);
     clearTimeout(this.roundTimer);
     rooms.delete(this.code);
+    broadcastRoomList();
   }
 
   // ---------- 准备与开局 ----------
@@ -137,6 +159,7 @@ class Room {
       t: 'start', seed: this.seed, len: this.len,
       startAt: this.startAt, roster: this.rosterView(), duration: ROUND_DURATION,
     });
+    broadcastRoomList();          // 开局后房间移出可加入列表
 
     // 对局中：2s 一次兜底 board；超时结算
     this.boardTimer = setInterval(() => {
@@ -276,6 +299,7 @@ class Room {
       for (const q of this.players.values()) { q.ready = false; q.z = 0; q.score = 0; q.status = 'lobby'; }
       this.sendRoster();
       this.broadcast({ t: 'lobby' });
+      broadcastRoomList();        // 回到大厅：房间重新可加入
       // 注意：不自动 tryStart，等玩家主动再点准备（避免无限连开）
     }
   }
@@ -315,10 +339,11 @@ export function handleConnection(ws) {
       return;
     }
     if (!room) {
-      // 未进房：只接受 create / join
+      // 未进房：只接受 create / join / rooms
       if (m.t === 'create') {
         const name = sanitizedName(m.name);
         if (!name) return kick('NAME', '名字需 1~12 个字符');
+        lobbyWatchers.delete(ws);            // 进房成功即不再是大厅浏览者
         room = new Room();
         const r = room.add(ws, name);
         if (r.err) return kick(r.err, '房间创建失败');
@@ -329,9 +354,19 @@ export function handleConnection(ws) {
         if (!name) return kick('NAME', '名字需 1~12 个字符');
         room = rooms.get(code);
         if (!room) return kick('NO_ROOM', '房间不存在');
+        lobbyWatchers.delete(ws);
         const r = room.add(ws, name);
-        if (r.err) return kick(r.err, r.err === 'IN_GAME' ? '对局进行中' : '房间已满');
+        if (r.err) {
+          kick(r.err, r.err === 'IN_GAME' ? '对局进行中' : '房间已满');
+          lobbyWatchers.add(ws);      // 加入失败：恢复浏览，回一帧最新列表（满员/开局房间已移出）
+          sendRoomListTo(ws);
+          return;
+        }
         playerId = r.player.id;
+      } else if (m.t === 'rooms') {
+        // 订阅房间列表：立即回一帧，后续变化实时推送（进房/断开自动取消订阅）
+        lobbyWatchers.add(ws);
+        sendRoomListTo(ws);
       }
       return;
     }
@@ -348,6 +383,7 @@ export function handleConnection(ws) {
   });
 
   ws.on('close', () => {
+    lobbyWatchers.delete(ws);
     if (room && playerId) room.onDisconnect(playerId);
   });
 

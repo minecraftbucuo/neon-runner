@@ -52,6 +52,7 @@ export const G = {
     roomId: null,
     myId: null,
     roster: [],               // [{id,name,ready,prog,score,status}]
+    roomList: [],             // [{code,count,max}] 在线可加入房间（入口面板浏览用）
     ghosts: null,             // Map<id, {snapshots[]}>（client.js 维护）
     rtt: 0,
     errMsg: null,

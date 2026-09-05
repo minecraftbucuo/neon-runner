@@ -196,6 +196,28 @@ kbd { display:inline-block; min-width:24px; padding:3px 8px; margin:0 3px;
 .join-row { display:flex; gap:10px; }
 .join-row input { flex:1; text-transform:uppercase; }
 .join-row .pill { flex:0 0 auto; padding:10px 18px; font-size:15px; }
+/* 在线房间列表（实时推送，点击加入） */
+#netRoomListBox { display:flex; flex-direction:column; gap:8px; }
+#netRoomListLabel { color:#6fa8b8; font-size:12px; letter-spacing:4px; text-align:center;
+  font-family:var(--font-tech); }
+#netRoomList { display:flex; flex-direction:column; gap:8px;
+  max-height:22vh; overflow-y:auto; }
+.netRoomItem { pointer-events:auto; cursor:pointer; display:flex;
+  justify-content:space-between; align-items:center; padding:10px 18px;
+  border-radius:12px; border:1px solid rgba(41,255,227,.25);
+  background:rgba(41,255,227,.05); color:#dffcf6;
+  font-family:var(--font-display); font-size:15px; letter-spacing:2px;
+  transition:border-color .15s, box-shadow .15s, background .15s; }
+.netRoomItem:hover, .netRoomItem:focus-visible { border-color:rgba(41,255,227,.85);
+  box-shadow:0 0 18px rgba(41,255,227,.22); background:rgba(41,255,227,.1);
+  outline:none; }
+.netRoomItem .code { font-family:var(--font-tech); font-weight:700;
+  letter-spacing:6px; color:#ffd24a; text-shadow:0 0 12px rgba(255,213,74,.5); }
+.netRoomItem .cnt { font-family:var(--font-tech); font-size:12px;
+  color:#79d2c4; letter-spacing:1px; }
+.netRoomEmpty { padding:12px 10px; border-radius:12px;
+  border:1px dashed rgba(255,255,255,.15); color:#5d8a92;
+  font-size:13px; letter-spacing:2px; text-align:center; }
 #netRoomLabel { color:#6fa8b8; font-size:12px; letter-spacing:4px; text-align:center;
   font-family:var(--font-tech); }
 #netRoomCodeBig { font-family:var(--font-tech); font-weight:900; font-size:56px;

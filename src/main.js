@@ -109,6 +109,7 @@ function boot() {
     overlay.showNetRoom(G.net.roomId, G.net.roster, G.net.myId);
   });
   bus.on('net:error', () => overlay.setNetStatus(G.net.errMsg));
+  bus.on('net:rooms', (m) => overlay.renderNetRooms(m.rooms || []));   // 在线房间实时刷新
   bus.on('net:closed', () => {
     net.disconnect();
     hud.showRaceTrack(false);
@@ -122,10 +123,20 @@ function boot() {
   // 联机入口直接给明确提示，不发起注定失败的连接。
   const isStaticHost = location.hostname.endsWith('.github.io');
   const STATIC_HINT = '当前为静态托管环境（GitHub Pages），未部署联机服务器。单机三大模式可正常游玩，联机需自托管部署（见 README）。';
+  /** 加入房间（手动输码与点击列表项共用） */
+  function joinRoomAction(room, name) {
+    if (!/^[A-Z0-9]{4}$/.test(room)) { overlay.setNetStatus('请输入 4 位房间码'); return; }
+    overlay.setNetStatus('连接服务器…');
+    net.joinRoom(room, name)
+      .then(() => overlay.setNetStatus('等待服务器响应…'))
+      .catch(() => overlay.setNetStatus('连接服务器失败'));
+  }
   overlay.onVersus(() => {
     if (G.mode !== 'ready') return;
     overlay.showNetEntry();
-    if (isStaticHost) overlay.setNetStatus(STATIC_HINT);
+    if (isStaticHost) { overlay.setNetStatus(STATIC_HINT); return; }
+    net.watchRooms()          // 打开面板即订阅在线房间列表（实时推送）
+      .catch(() => overlay.setNetStatus('连接服务器失败'));
   });
   overlay.onNetCreate((name) => {
     if (isStaticHost) { overlay.setNetStatus(STATIC_HINT); return; }
@@ -136,11 +147,11 @@ function boot() {
   });
   overlay.onNetJoin((room, name) => {
     if (isStaticHost) { overlay.setNetStatus(STATIC_HINT); return; }
-    if (!/^[A-Z0-9]{4}$/.test(room)) { overlay.setNetStatus('请输入 4 位房间码'); return; }
-    overlay.setNetStatus('连接服务器…');
-    net.joinRoom(room, name)
-      .then(() => overlay.setNetStatus('等待服务器响应…'))
-      .catch(() => overlay.setNetStatus('连接服务器失败'));
+    joinRoomAction(room, name);
+  });
+  overlay.onNetJoinRoom((room, name) => {
+    if (isStaticHost) { overlay.setNetStatus(STATIC_HINT); return; }
+    joinRoomAction(room, name);
   });
   overlay.onNetBack(() => { net.disconnect(); overlay.hideNet(); controller.toMenu(true); });
   overlay.onNetLeave(() => { net.disconnect(); overlay.hideNet(); controller.toMenu(true); });
