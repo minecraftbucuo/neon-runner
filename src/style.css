@@ -24,6 +24,8 @@ canvas { display:block; }
   backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
   transition:opacity .28s ease; }
 #overlay.hidden { opacity:0; pointer-events:none; }
+/* .pill 的 pointer-events:auto 会覆盖父级 none，需显式关掉，否则隐藏按钮仍拦截对局中的点按换道 */
+#overlay.hidden .pill, #overlay.hidden input { pointer-events:none; }
 #title { font-family:var(--font-display); font-weight:400;
   font-size:min(12vw,76px); letter-spacing:5px; text-indent:5px;
   color:#eafffb;
