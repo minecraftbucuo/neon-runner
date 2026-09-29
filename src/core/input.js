@@ -51,7 +51,10 @@ export function setupInput(canvas) {
   canvas.addEventListener('pointerdown', (ev) => {
     ptrDown = true; ptrX = ev.clientX;
     bus.emit('audio:unlock');
-    if (G.mode !== 'playing') bus.emit('ui:primary');
+    if (G.mode !== 'playing') { bus.emit('ui:primary'); return; }
+    // 点按换道：以屏幕中线分界，点左半边向左、右半边向右（滑动仍有效）
+    if (ev.clientX < window.innerWidth / 2) push({ type: 'move', dir: -1 });
+    else push({ type: 'move', dir: 1 });
   });
   window.addEventListener('pointermove', (ev) => {
     if (!ptrDown || G.mode !== 'playing') return;
